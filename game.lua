@@ -11,6 +11,11 @@ function Game:start_up()
 end
 
 function Game:update(dt)
+  if test_rect:is_mouse_over() then
+    test_rect.color = Color.red
+  else
+    test_rect.color = Color.green
+  end
 end
 
 function Game:draw()
