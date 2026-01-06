@@ -237,8 +237,41 @@ local function checkFileUpdate()
 
     -- If any file was modified, clear packages from the require cache if configured
     if lick.clearPackages then
+        -- List of built-in Lua libraries that should never be cleared
+        local builtin_libs = {
+            string = true,
+            table = true,
+            math = true,
+            io = true,
+            os = true,
+            debug = true,
+            coroutine = true,
+            package = true,
+            utf8 = true,
+            bit = true,
+            jit = true,
+            ffi = true,
+            -- Socket library (For modules that use LuaSocket)
+            socket = true,
+            ["socket.core"] = true,
+            mime = true,
+            ["mime.core"] = true,
+            ltn12 = true,
+            ["socket.http"] = true,
+            ["socket.url"] = true,
+            ["socket.headers"] = true,
+            ["socket.smtp"] = true,
+            ["socket.tp"] = true,
+            ["socket.ftp"] = true,
+            -- LÖVE built-in modules
+            love = true
+        }
+
         for k, _ in pairs(package.loaded) do
-            package.loaded[k] = nil
+            -- Only clear non-builtin packages
+            if not builtin_libs[k] then
+                package.loaded[k] = nil
+            end
         end
     end
 
@@ -276,8 +309,7 @@ local function draw()
 
     if lick.debug and debug_output then
         love.graphics.setColor(1, 1, 1, lick.debugTextAlpha)
-        love.graphics.printf(debug_output, (love.graphics.getWidth() / 2) + lick.debugTextXOffset, 0, lick
-            .debugTextWidth, lick.debugTextAlignment)
+        love.graphics.printf(debug_output, (love.graphics.getWidth() / 2) + lick.debugTextXOffset, 0, lick.debugTextWidth, lick.debugTextAlignment)
     end
 end
 
