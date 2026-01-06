@@ -1,6 +1,7 @@
+-- Find modules in the modules/ directory
 package.path = package.path .. ";modules/?.lua;modules/?/init.lua"
 
-require("engine.class")
+require("engine.class")       -- Base Class implementation needed for everything.
 require("models.vector2")
 require("models.transform")
 require("models.color")
