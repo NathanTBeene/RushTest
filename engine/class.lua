@@ -20,6 +20,11 @@ function Class:extend()
 end
 
 function Class:is(T)
+  -- Handle primitives (numbers, strings, etc.) that don't have class metatables
+  if type(self) ~= "table" then
+    return false
+  end
+
   local mt = getmetatable(self)
   while mt do
     if mt == T then
