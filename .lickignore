@@ -1,0 +1,23 @@
+# Lick ignore file - similar to .gitignore syntax
+
+# Ignore specific files
+
+# Ignore directories
+.vscode/
+.git/
+build/
+dist/
+modules/
+
+# Ignore all files with specific extensions
+*.md
+*.txt
+*.json
+
+# Ignore files matching pattern
+test_*.lua
+*_backup.lua
+
+# Use ** to match any number of directories
+**/temp/
+**/cache/**
