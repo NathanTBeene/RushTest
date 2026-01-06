@@ -15,10 +15,9 @@ require("engine.colorrect")
 
 -- Systems
 require("game")
+require("network")
 
 -- Modules
-Conduit = require("conduit")
-
 lick = require("modules.lick") -- Allows hot reloading
 lick.updateAllFiles = true
 lick.reset = true
@@ -31,15 +30,6 @@ lick.debug = true
 --- This is where the main game logic will be handled.
 --- @type Game
 G = Game()
-
---- Initialize Conduit for debugging
-Conduit:init({
-  port = 8080,
-  timestamps = true,
-  max_logs = 1000,
-  max_watchables = 100,
-  refresh_interval = 100
-})
 
 -- ------------------------------ LOVE METHODS ------------------------------ --
 
