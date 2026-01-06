@@ -1,12 +1,17 @@
+---@diagnostic disable: undefined-doc-name
 --||--
---This Object implementation was taken from SNKRX (MIT license). Slightly modified, this is a very simple OOP base
+--The base Object implementation was taken from SNKRX (MIT license) and then heavily modified and extended for this engine.
+--||--
 
+--- @class Class
 Class = {}
 Class.__index = Class
 function Class:init()
 end
 
-function Class:extend()
+--- Creates a subclass of the current class
+--- @return Class
+function Class:extend(name)
   local cls = {}
   for k, v in pairs(self) do
     if k:find("__") == 1 then
@@ -14,11 +19,57 @@ function Class:extend()
     end
   end
   cls.__index = cls
+  cls.__name = name or cls.__name
   cls.super = self
   setmetatable(cls, self)
   return cls
 end
 
+-- ------------------------------ COPY METHODS ------------------------------ --
+
+--- Creates a shallow copy of the current instance
+--- @return Class
+function Class:clone()
+  local copy = setmetatable({}, getmetatable(self))
+  for k, v in pairs(self) do
+    copy[k] = v
+  end
+  return copy
+end
+
+--- Creates a deep copy of the current instance
+--- @return Class
+function Class:deep_clone()
+  local function deep_copy(obj)
+    if type(obj) ~= "table" then return obj end
+
+    local copy = setmetatable({}, getmetatable(obj))
+    for k, v in pairs(obj) do
+      copy[k] = deep_copy(v)
+    end
+    return copy
+  end
+
+  return deep_copy(self)
+end
+
+-- -------------------------------- CHECKERS -------------------------------- --
+
+--- Checks if the current class is a subclass of T or T itself
+--- @param T Class
+--- @return boolean
+function Class:includes(T)
+  local mt = self
+  while mt do
+    if mt == T then return true end
+    mt = mt.super
+  end
+  return false
+end
+
+--- Checks if the current instance is of type T or a subclass thereof
+--- @param T Class
+--- @return boolean
 function Class:is(T)
   -- Handle primitives (numbers, strings, etc.) that don't have class metatables
   if type(self) ~= "table" then
@@ -35,20 +86,45 @@ function Class:is(T)
   return false
 end
 
+-- --------------------------------- MIXINS --------------------------------- --
+
+--- Implements mixins into the current class
+--- @param ... table Mixins to implement
+function Class:implement(...)
+  for _, mixin in pairs({...}) do
+    for k, v in pairs(mixin) do
+      if self[k] == nil then -- Only add if not already present
+        self[k] = v
+      end
+    end
+  end
+end
+
+-- ----------------------------- SPECIAL METHODS ---------------------------- --
+
+--- Creates a new instance of the class
+--- @return Class
 function Class:__call(...)
   local obj = setmetatable({}, self)
   obj:init(...)
   return obj
 end
 
+--- Returns a string representation of the class
+--- @return string
+Class.__tostring = Class.__to_string -- Forward to __to_string
 function Class:__to_string()
   return self.__name or "Class"
 end
 
+--- Concatenates the string representation of the class with another string
+--- @param other string
 function Class:__concat(other)
   return self:__to_string() .. other
 end
 
+--- Gets the parent class of the current class
+--- @return Class
 function Class:get_parent()
   return self.super
 end

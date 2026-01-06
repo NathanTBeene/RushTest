@@ -7,5 +7,9 @@
     "redundant-parameter",
     "lowercase-global",
     "duplicate-set-field"
-  ]
+  ],
+  "Lua.hover.expandAlias": false,
+  "Lua.hover.viewNumber": false,
+  "Lua.workspace.checkThirdParty": false,
+  "Lua.workspace.viewString": false
 }

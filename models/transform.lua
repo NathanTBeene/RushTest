@@ -1,4 +1,4 @@
----@class Transform
+---@class Transform : Class
 Transform = Class:extend()
 
 --- Constructor for the Transform class
@@ -21,6 +21,7 @@ function Transform:init(x, y, z, width, height, rotation_x, rotation_y, scale_x,
     self.pivot = Vector2(0, 0)
 end
 
+-- ----------------------------- SPECIAL METHODS ---------------------------- --
 
 function Transform:__tostring()
     return string.format("Transform(position: %s, rotation: %s, scale: %s, z: %d, width: %d, height: %d)",

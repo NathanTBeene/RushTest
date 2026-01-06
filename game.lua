@@ -1,4 +1,4 @@
----@class Game
+---@class Game : Class
 Game = Class:extend()
 
 function Game:init()
@@ -6,13 +6,15 @@ function Game:init()
 end
 
 function Game:start_up()
-
+  test_rect = ColorRect(Color.cyan)
+  test_rect.transform.position = Vector2(100, 100)
 end
 
 function Game:update(dt)
 end
 
 function Game:draw()
+  test_rect:draw()
 end
 
 function Game:key_pressed(key)

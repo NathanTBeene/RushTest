@@ -1,47 +1,49 @@
 -- Find modules in the modules/ directory
 package.path = package.path .. ";modules/?.lua;modules/?/init.lua"
-
 require("engine.class")       -- Base Class implementation needed for everything.
+
+-- --------------------------------- IMPORTS -------------------------------- --
+-- Models
 require("models.vector2")
 require("models.transform")
 require("models.color")
+
+-- Engine Components
 require("engine.node")
-require("engine.scene")
 require("engine.control")
 require("engine.colorrect")
-require("engine.event")
-require("engine.scene")
-require("game")
-require("globals")
 
+-- Systems
+require("game")
+
+-- Modules
 Conduit = require("conduit")
 
-lick = require("modules.lick.lick")
+lick = require("modules.lick") -- Allows hot reloading
+lick.updateAllFiles = true
 lick.reset = true
+lick.clearPackages = true
+lick.debug = true
 
+-- ---------------------------------- SETUP --------------------------------- --
+
+--- Global Game Instance
+--- This is where the main game logic will be handled.
+--- @type Game
 G = Game()
 
+--- Initialize Conduit for debugging
+Conduit:init({
+  port = 8080,
+  timestamps = true,
+  max_logs = 1000,
+  max_watchables = 100,
+  refresh_interval = 100
+})
+
+-- ------------------------------ LOVE METHODS ------------------------------ --
+
 function love.load()
-  -- Conduit and Debug setup
-  Conduit:init({
-    port = 8080,
-    timestamps = true,
-    max_logs = 1000,
-    max_watchables = 100,
-    refresh_interval = 100
-  })
-
-  D_SYSTEM = Conduit:console("system")
-  D_SYSTEM:clear()
-  D_SYSTEM:log("Game Starting...")
-
-  Conduit:console("gameplay")
-
-  Conduit.gameplay:clear()
-  Conduit.gameplay:watch("FPS", function() return love.timer.getFPS() end)
-  Conduit.gameplay:watch("Delta Time", function() return love.timer.getDelta() end)
-  Conduit.gameplay:log("Gameplay console initialized.")
-
   G:start_up()
 end
 

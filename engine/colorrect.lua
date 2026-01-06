@@ -1,13 +1,13 @@
 ---@class ColorRect : Control
 ColorRect = Control:extend()
 
----@param color Color
----@param width number
----@param height number
+--- Constructor for the ColorRect class
+---@param color? Color The color of the rectangle (optional, default to Color())
+---@param width? number The width of the rectangle (optional, default to 100)
+---@param height? number The height of the rectangle (optional, default to 100)
 function ColorRect:init(color, width, height)
   ColorRect.super.init(self)
-  self.color = color or Color(1, 1, 1, 1)
-  -- Width and height will be stored in the transform via the __newindex metamethod
+  self.color = color or Color()
   self.transform.width = width or 100
   self.transform.height = height or 100
 end
