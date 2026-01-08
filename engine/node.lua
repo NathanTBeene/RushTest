@@ -1,14 +1,56 @@
 ---@class Node : Class
-Node = Class:extend()
+Node = Class:extend("Node")
 
 --- Constructor for the Node class
 function Node:init()
   self.parent = nil
   self.children = {}
-  self.transform = Transform()
   self.active = true
   self.debug = false
-  self.name = ""
+
+  -- Transforms
+  self.transform = Transform()
+  self.global_transform = Transform()
+
+  -- Property Aliasing
+  local mt = getmetatable(self)
+  local original_index = mt.__index
+
+  mt.__index = function(table, key)
+    -- Local Transform Aliasing
+    if key == "position" then return rawget(table, "transform").position
+    elseif key == "rotation" then return rawget(table, "transform").rotation
+    elseif key == "scale" then return rawget(table, "transform").scale
+
+    -- Global Transform Aliasing
+    elseif key == "global_position" then return rawget(table, "global_transform").position
+    elseif key == "global_rotation" then return rawget(table, "global_transform").rotation
+    elseif key == "global_scale" then return rawget(table, "global_transform").scale
+    end
+
+    -- Fall back to original __index
+    if type(original_index) == "function" then
+      return original_index(table, key)
+    else
+      return original_index[key]
+    end
+  end
+
+  mt.__newindex = function(table, key, value)
+    -- Local Transform Aliasing
+    if key == "position" then rawget(table, "transform").position = value
+    elseif key == "rotation" then rawget(table, "transform").rotation = value
+    elseif key == "scale" then rawget(table, "transform").scale = value
+
+    -- Global Transform Aliasing
+    elseif key == "global_position" then rawget(table, "global_transform").position = value
+    elseif key == "global_rotation" then rawget(table, "global_transform").rotation = value
+    elseif key == "global_scale" then rawget(table, "global_transform").scale = value
+
+    else
+      rawset(table, key, value)
+    end
+  end
 end
 
 -- ------------------------- LOVE LIFECYCLE METHODS ------------------------- --
@@ -25,6 +67,7 @@ end
 function Node:update(dt)
   if not self.active then return end
   self:_update(dt)
+  self:update_transforms(dt)
   for i = #self.children, 1, -1 do
     self.children[i]:update(dt)
   end
@@ -33,10 +76,7 @@ end
 --- Called every frame to draw the node as well as its children
 function Node:draw()
   if not self.active then return end
-
-  self:draw_bounds()
   self:_draw()
-
   for _, child in ipairs(self.children) do
     child:draw()
   end
@@ -104,6 +144,24 @@ function Node:destroy()
   self:remove_from_parent()
 end
 
+--- Updates the transforms of children to reflect any changes in this node's transform
+--- @param dt number Delta time since last update
+function Node:update_transforms(dt)
+  -- Update global transform based on parent's global transform
+  if self.parent then
+    self.global_transform.position = self.parent.global_transform.position + self.position
+    self.global_transform.rotation = self.parent.global_transform.rotation + self.rotation
+    self.global_transform.scale = Vector2(
+      self.parent.global_transform.scale.x * self.scale.x,
+      self.parent.global_transform.scale.y * self.scale.y
+    )
+  else
+    self.global_transform.position = self.position
+    self.global_transform.rotation = self.rotation
+    self.global_transform.scale = self.scale
+  end
+end
+
 -- -------------------------------- DEBUGGING ------------------------------- --
 
 --- Prints the tree structure starting from this node
@@ -115,95 +173,8 @@ function Node:print_tree(depth)
   end
 end
 
---- Draws the bounding box of this node if debug mode is enabled
-function Node:draw_bounds()
-  if not self.debug then return end
-
-  local corners = self:get_bounds()
-  love.graphics.setColor(0, 1, 0, 1)
-
-  for i = 1, #corners do
-    local next_i = (i % #corners) + 1
-    love.graphics.line(corners[i].x, corners[i].y, corners[next_i].x, corners[next_i].y)
-  end
-
-  love.graphics.setColor(1, 1, 1, 1)
-end
-
--- --------------------------------- GETTERS -------------------------------- --
-
--- Returns a table with Vector2 points for the corners of the bounding box
----@return table
-function Node:get_bounds()
-  local w = self.transform.width * self.transform.scale.x
-  local h = self.transform.height * self.transform.scale.y
-  local rot = self.transform.rotation.y
-  local px, py = self.transform.pivot.x, self.transform.pivot.y
-  local pos = self.transform.position
-
-  local corners = {
-    Vector2(0,0),
-    Vector2(w,0),
-    Vector2(w,h),
-    Vector2(0,h)
-  }
-
-  -- Transform each corner.
-  local transformed_corners = {}
-  local cos_r = math.cos(rot)
-  local sin_r = math.sin(rot)
-
-  for i, corner in ipairs(corners) do
-    -- Translate to pivot
-    local lx = corner.x - px
-    local ly = corner.y - py
-
-    -- Rotate
-    local rx = lx * cos_r - ly * sin_r
-    local ry = lx * sin_r + ly * cos_r
-
-    -- Translate back and apply position
-    transformed_corners[i] = Vector2(rx + px + pos.x, ry + py + pos.y)
-  end
-
-  return transformed_corners
-end
-
--- ----------------------------- STATE CHECKERS ----------------------------- --
-
----@param point Vector2
-function Node:is_in_bounds(point)
-  -- 1. Get properties
-  local w = self.transform.width * self.transform.scale.x
-  local h = self.transform.height * self.transform.scale.y
-  local rot = self.transform.rotation.y
-  local px, py = self.transform.pivot.x, self.transform.pivot.y
-  local pos = self.transform.position
-
-  -- 2. Translate point to local space
-  local lx = point.x - pos.x
-  local ly = point.y - pos.y
-
-  -- 3. Translate to pivot
-  lx = lx - px
-  ly = ly - py
-
-  -- 4. Rotate point in opposite direction
-  local cos_r = math.cos(-rot)
-  local sin_r = math.sin(-rot)
-  local rx = lx * cos_r - ly * sin_r
-  local ry = lx * sin_r + ly * cos_r
-
-  -- 5. Traslate back from pivot
-  rx = rx + px
-  ry = ry + py
-
-  -- 6. Check bounds
-  return rx >= 0 and rx <= w and ry >= 0 and ry <= h
-end
-
 -- ----------------------------- SPECIAL METHODS ---------------------------- --
 
-function Node:__to_string()
-  return "Node: " .. self.name
+function Node:__tostring()
+  return "Node: " .. self.__name
 end

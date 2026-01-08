@@ -105,22 +105,29 @@ end
 --- Creates a new instance of the class
 --- @return Class
 function Class:__call(...)
+  local args = {...}
   local obj = setmetatable({}, self)
-  obj:init(...)
+
+  -- If first arg is a string, treat as name
+  if #args > 0 and type(args[1]) == "string" then
+    obj.__name = args[1]
+    table.remove(args, 1)
+  end
+
+  obj:init(unpack(args))
   return obj
 end
 
 --- Returns a string representation of the class
 --- @return string
-Class.__tostring = Class.__to_string -- Forward to __to_string
-function Class:__to_string()
+function Class:__tostring()
   return self.__name or "Class"
 end
 
 --- Concatenates the string representation of the class with another string
 --- @param other string
 function Class:__concat(other)
-  return self:__to_string() .. other
+  return self:__tostring() .. other
 end
 
 --- Gets the parent class of the current class

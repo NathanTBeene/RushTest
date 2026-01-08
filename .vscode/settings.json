@@ -1,12 +1,15 @@
 {
   "Lua.diagnostics.globals": [
-    "love"
+    "love",
   ],
   "Lua.diagnostics.disable": [
     "undefined-field",
     "redundant-parameter",
     "lowercase-global",
-    "duplicate-set-field"
+    "duplicate-set-field",
+    "deprecated",
+    "inject-field",
+    "undefined-global"
   ],
   "Lua.hover.expandAlias": false,
   "Lua.hover.viewNumber": false,

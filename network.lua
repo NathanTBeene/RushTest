@@ -12,4 +12,5 @@ if not Conduit then
 end
 
 Conduit:console("system")
+Conduit.system:log("Conduit initialized in main.lua")
 Conduit:console("gameplay")

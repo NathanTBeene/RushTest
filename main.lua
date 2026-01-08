@@ -7,14 +7,18 @@ require("engine.class")       -- Base Class implementation needed for everything
 require("models.vector2")
 require("models.transform")
 require("models.color")
+require("models.rect")
 
 -- Engine Components
 require("engine.node")
 require("engine.control")
+require("engine.draggable")
 require("engine.colorrect")
+require("engine.scene")
 
 -- Systems
 require("game")
+require("globals")
 require("network")
 
 -- Modules

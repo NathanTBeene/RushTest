@@ -1,5 +1,5 @@
 ---@class ColorRect : Control
-ColorRect = Control:extend()
+ColorRect = Control:extend("ColorRect")
 
 --- Constructor for the ColorRect class
 ---@param color? Color The color of the rectangle (optional, default to Color())
