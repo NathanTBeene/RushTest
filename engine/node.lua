@@ -38,7 +38,10 @@ function Node:init()
 
   mt.__newindex = function(table, key, value)
     -- Local Transform Aliasing
-    if key == "position" then rawget(table, "transform").position = value
+    if key == "position" then
+      -- Set position
+      rawget(table, "transform").position = value
+      -- Also update global position
     elseif key == "rotation" then rawget(table, "transform").rotation = value
     elseif key == "scale" then rawget(table, "transform").scale = value
 
@@ -177,4 +180,10 @@ end
 
 function Node:__tostring()
   return "Node: " .. self.__name
+end
+
+--- Internal method for calculating global position
+--- from screen space
+function Node:_get_global_position()
+
 end

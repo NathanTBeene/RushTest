@@ -1,5 +1,6 @@
 -- Find modules in the modules/ directory
 package.path = package.path .. ";modules/?.lua;modules/?/init.lua"
+require("conf")
 require("engine.class")       -- Base Class implementation needed for everything.
 
 -- --------------------------------- IMPORTS -------------------------------- --
