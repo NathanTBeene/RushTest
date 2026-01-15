@@ -135,3 +135,11 @@ end
 function Class:get_parent()
   return self.super
 end
+
+function Class:_print_metatable()
+  local mt = getmetatable(self)
+  print("Metatable of " .. tostring(self) .. ":")
+  for k, v in pairs(mt) do
+    print("  " .. tostring(k) .. " : " .. tostring(v))
+  end
+end
