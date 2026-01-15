@@ -1,5 +1,4 @@
--- Find modules in the modules/ directory
-package.path = package.path .. ";modules/?.lua;modules/?/init.lua"
+require("network")
 require("conf")
 require("engine.class")       -- Base Class implementation needed for everything.
 
@@ -13,14 +12,12 @@ require("models.rect")
 -- Engine Components
 require("engine.node")
 require("engine.control")
-require("engine.draggable")
 require("engine.colorrect")
 require("engine.scene")
 
 -- Systems
 require("game")
 require("globals")
-require("network")
 
 -- Modules
 lick = require("modules.lick") -- Allows hot reloading
@@ -28,6 +25,19 @@ lick.updateAllFiles = true
 lick.reset = true
 lick.clearPackages = true
 lick.debug = true
+lick.onReload = function(files)
+  if type(Conduit.consoles) ~= "table" then
+    Conduit.system:error("No consoles found in Conduit.consoles!\n Type found: " .. type(Conduit.consoles))
+    return
+  end
+  for _, console in pairs(Conduit.consoles) do
+    console:clear()
+  end
+end
+
+lick.debugPrint = function(msg, prefix)
+  Conduit.system:log((prefix or "[Lick] ") .. msg)
+end
 
 -- ---------------------------------- SETUP --------------------------------- --
 

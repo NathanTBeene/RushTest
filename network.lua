@@ -1,5 +1,5 @@
 if not Conduit then
-  Conduit = require("conduit")
+  Conduit = require("modules.conduit")
 
   --- Initialize Conduit for debugging
   Conduit:init({
@@ -13,4 +13,6 @@ end
 
 Conduit:console("system")
 Conduit.system:log("Conduit initialized in main.lua")
+Conduit:console("engine")
 Conduit:console("gameplay")
+Conduit:console("property")
