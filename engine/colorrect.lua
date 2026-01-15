@@ -1,6 +1,8 @@
 ---@class ColorRect : Control
 ColorRect = Control:extend("ColorRect")
 
+---* The ColorRect uses the transform and rect properties of Control to draw a colored rectangle.
+
 --- Constructor for the ColorRect class
 ---@param color? Color The color of the rectangle (optional, default to Color())
 ---@param width? number The width of the rectangle (optional, default to 100)
@@ -13,26 +15,26 @@ function ColorRect:init(color, width, height)
 end
 
 
-function ColorRect:draw()
+function ColorRect:_draw()
   if not self.active then return end
-  self.super.draw(self)
 
   love.graphics.setColor(self.color.r, self.color.g, self.color.b, self.color.a)
   love.graphics.push()
 
   -- Move to the object's position
-  love.graphics.translate(self.transform.position.x, self.transform.position.y)
+  love.graphics.translate(self.position.x, self.position.y)
 
   -- Move to the pivot point
-  love.graphics.translate(self.transform.pivot.x, self.transform.pivot.y)
+  love.graphics.translate(self.pivot.x, self.pivot.y)
 
   -- Rotate around the pivot
-  love.graphics.rotate(self.transform.rotation.y)
+  love.graphics.rotate(self.rotation)
 
   -- Move back from the pivot point
-  love.graphics.translate(-self.transform.pivot.x, -self.transform.pivot.y)
+  love.graphics.translate(-self.pivot.x, -self.pivot.y)
 
   -- Draw the rectangle
-  love.graphics.rectangle("fill", 0, 0, self.transform.width * self.transform.scale.x, self.transform.height * self.transform.scale.y)
+  love.graphics.rectangle("fill", 0, 0, self.width * self.scale.x, self.height * self.scale.y)
   love.graphics.pop()
+  self.super._draw(self)
 end
