@@ -1,6 +1,9 @@
 ---@class Node : Class
 Node = Class:extend("Node")
 
+local PropertyMixin = require("engine.mixins.property")
+Node:implement(PropertyMixin)
+
 --- Constructor for the Node class
 function Node:init()
   self.parent = nil
@@ -12,48 +15,105 @@ function Node:init()
   self.transform = Transform()
   self.global_transform = Transform()
 
-  -- Property Aliasing
-  local mt = getmetatable(self)
-  local original_index = mt.__index
+  -- Init property system
+  self:init_properties()
 
-  mt.__index = function(table, key)
-    -- Local Transform Aliasing
-    if key == "position" then return rawget(table, "transform").position
-    elseif key == "rotation" then return rawget(table, "transform").rotation
-    elseif key == "scale" then return rawget(table, "transform").scale
-
-    -- Global Transform Aliasing
-    elseif key == "global_position" then return rawget(table, "global_transform").position
-    elseif key == "global_rotation" then return rawget(table, "global_transform").rotation
-    elseif key == "global_scale" then return rawget(table, "global_transform").scale
+  -- Define transform property aliases
+  self:define_property("position",
+    function(self) return self.transform.position end,
+    function(self, value)
+      -- Set position value
+      self.transform.position = value
+      -- Update global position based on parent's global position
+      if self.parent then
+        self.global_transform.position = self.parent.global_transform.position + value
+      else
+        self.global_transform.position = value
+      end
     end
+  )
 
-    -- Fall back to original __index
-    if type(original_index) == "function" then
-      return original_index(table, key)
-    else
-      return original_index[key]
+  self:define_property("rotation",
+    function(self) return self.transform.rotation end,
+    function(self, value)
+      self.transform.rotation = value
+      -- Update global rotation based on parent's global rotation
+      if self.parent then
+        self.global_transform.rotation = self.parent.global_transform.rotation + value
+      else
+        self.global_transform.rotation = value
+      end
     end
-  end
+  )
 
-  mt.__newindex = function(table, key, value)
-    -- Local Transform Aliasing
-    if key == "position" then
-      -- Set position
-      rawget(table, "transform").position = value
-      -- Also update global position
-    elseif key == "rotation" then rawget(table, "transform").rotation = value
-    elseif key == "scale" then rawget(table, "transform").scale = value
-
-    -- Global Transform Aliasing
-    elseif key == "global_position" then rawget(table, "global_transform").position = value
-    elseif key == "global_rotation" then rawget(table, "global_transform").rotation = value
-    elseif key == "global_scale" then rawget(table, "global_transform").scale = value
-
-    else
-      rawset(table, key, value)
+  self:define_property("scale",
+    function(self) return self.transform.scale end,
+    function(self, value)
+      self.transform.scale = value
+      -- Update global scale based on parent's global scale
+      if self.parent then
+        self.global_transform.scale = Vector2(
+          self.parent.global_transform.scale.x * value.x,
+          self.parent.global_transform.scale.y * value.y
+        )
+      else
+        self.global_transform.scale = value
+      end
     end
-  end
+  )
+
+  self:define_property("pivot",
+    function(self) return self.transform.pivot end,
+    function(self, value)
+      self.transform.pivot = value
+      -- Pivot does not affect global transform directly
+    end
+  )
+
+  -- Define global transform property aliases
+  self:define_property("global_position",
+    function(self) return self.global_transform.position end,
+    function(self, value)
+      self.global_transform.position = value
+      -- Update local position based on parent's global position
+      if self.parent then
+        self.transform.position = value - self.parent.global_transform.position
+      else
+        self.transform.position = value
+      end
+    end
+  )
+
+  self:define_property("global_rotation",
+    function(self) return self.global_transform.rotation end,
+    function(self, value)
+      self.global_transform.rotation = value
+      -- Update local rotation based on parent's global rotation
+      if self.parent then
+        self.transform.rotation = value - self.parent.global_transform.rotation
+      else
+        self.transform.rotation = value
+      end
+    end
+  )
+
+  self:define_property("global_scale",
+    function(self) return self.global_transform.scale end,
+    function(self, value)
+      self.global_transform.scale = value
+      -- Update local scale based on parent's global scale
+      if self.parent then
+        self.transform.scale = Vector2(
+          value.x / self.parent.global_transform.scale.x,
+          value.y / self.parent.global_transform.scale.y
+        )
+      else
+        self.transform.scale = value
+      end
+    end
+  )
+
+  -- Global pivot should not be used.
 end
 
 -- ------------------------- LOVE LIFECYCLE METHODS ------------------------- --
@@ -150,19 +210,7 @@ end
 --- Updates the transforms of children to reflect any changes in this node's transform
 --- @param dt number Delta time since last update
 function Node:update_transforms(dt)
-  -- Update global transform based on parent's global transform
-  if self.parent then
-    self.global_transform.position = self.parent.global_transform.position + self.position
-    self.global_transform.rotation = self.parent.global_transform.rotation + self.rotation
-    self.global_transform.scale = Vector2(
-      self.parent.global_transform.scale.x * self.scale.x,
-      self.parent.global_transform.scale.y * self.scale.y
-    )
-  else
-    self.global_transform.position = self.position
-    self.global_transform.rotation = self.rotation
-    self.global_transform.scale = self.scale
-  end
+
 end
 
 -- -------------------------------- DEBUGGING ------------------------------- --
@@ -179,7 +227,8 @@ end
 -- ----------------------------- SPECIAL METHODS ---------------------------- --
 
 function Node:__tostring()
-  return "Node: " .. self.__name
+  local name = self.__name or "Node"
+  return string.format("<%s: %s>", name, tostring(self.transform.position))
 end
 
 --- Internal method for calculating global position

@@ -12,31 +12,21 @@ function Control:init()
   self.rect = Rect(0, 0, 100, 100)
 
   -- Aliasing
-  local mt = getmetatable(self)
-  local original_index = mt.__index
-
-  mt.__index = function(table, key)
-    -- Rect Aliasing
-    if key == "position" then return rawget(table, "rect").position
-    elseif key == "size" then return rawget(table, "rect").size
+  self:define_property("size",
+    function(self) return Vector2(self.rect.width, self.rect.height) end,
+    function(self, value)
+      self.rect.width = value.x
+      self.rect.height = value.y
     end
-
-    -- Fall back to original __index
-    if type(original_index) == "function" then
-      return original_index(table, key)
-    else
-      return original_index[key]
-    end
-  end
-
-  mt.__newindex = function(table, key, value)
-    -- Rect Aliasing
-    if key == "position" then rawget(table, "rect").position = value
-    elseif key == "size" then rawget(table, "rect").size = value
-    else
-      rawset(table, key, value)
-    end
-  end
+  )
+  self:define_property("width",
+    function(self) return self.rect.width end,
+    function(self, value) self.rect.width = value end
+  )
+  self:define_property("height",
+    function(self) return self.rect.height end,
+    function(self, value) self.rect.height = value end
+  )
 end
 
 -- ---------------------------- LIFECYCLE METHODS --------------------------- --
@@ -48,7 +38,7 @@ function Control:_update(dt)
 end
 
 function Control:_draw()
-  self:draw_bounds()
+  self:draw_bounds(Color.purple)
 end
 
 --- Checks if the mouse is currently over this control
@@ -59,9 +49,14 @@ function Control:is_mouse_over()
 end
 
 --- Draws the bounding rectangle of the control for debugging purposes
-function Control:draw_bounds()
+function Control:draw_bounds(color, thickness)
   if not self.debug then return end
-  love.graphics.setColor(1, 0, 0, 0.5)
+
+  local choice = color or Color.red
+  local thick = thickness or 2
+
+  love.graphics.setColor(choice.r, choice.g, choice.b, choice.a)
+  love.graphics.setLineWidth(thick)
   love.graphics.rectangle("line", self.global_position.x, self.global_position.y, self.size.x, self.size.y)
   love.graphics.setColor(1, 1, 1, 1)
 end

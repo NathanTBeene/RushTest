@@ -1,17 +1,28 @@
 ---@class Scene : Class
 Scene = Class:extend("Scene")
 
+local PropertyMixin = require("engine.mixins.property")
+Scene:implement(PropertyMixin)
+
 ---* A Scene is the root node of a scene graph. It contains all nodes that are part
 ---* of the scene organized in a tree structure.
 
 function Scene:init(base_node)
   Scene.super.init(self)
   self.root = base_node or Node()
+
+  -- Init property system
+  self:init_properties()
+
+  self:define_property("debug",
+    function(self) return self.root.debug end,
+    function(self, value) self.root.debug = value end
+  )
 end
 
 function Scene:load()
   if G.debug then
-    Conduit.system:log("Loading Scene " .. tostring(self))
+    Conduit.engine:log("Loading Scene " .. tostring(self))
   end
   self.root:load()
 end
