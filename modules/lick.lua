@@ -22,6 +22,25 @@ lick.debugTextWidth = 400              -- Maximum width for debug text
 lick.debugTextAlpha = 0.8              -- Opacity of the debug text (0.0 to 1.0)
 lick.debugTextAlignment = "right"      -- Alignment of the debug text ("left", "right", "center", "justify")
 lick.ignoreFile = ".lickignore"        -- file containing list of files to ignore
+lick.mergePatterns = false             -- If true, merges default ignore patterns with .lickignore patterns
+lick.onReload = nil                    -- Optional callback function to call after a reload. Passes list of reloaded files. Signature: function(reloaded_files)
+lick.ignorePackages = {}               -- list of package names to ignore when clearing package.loaded
+
+-- Default Ignore Patterns (used if no .lickignore file is found)
+local default_ignore_patterns = [[
+# Lick Itself
+lick.lua
+.lickignore
+
+# Common Lua/LOVE directories
+.git/
+.vscode/
+.idea/
+vendor/
+lib/
+libraries/
+modules/
+]]
 
 -- local variables
 -- No longer needed, debug_output tracks persistent errors
@@ -30,6 +49,24 @@ local debug_output = nil
 local working_files = {}
 local should_clear_screen_next_frame = false -- Flag to clear screen on next draw cycle
 local ignore_patterns = {}
+
+-- List of built-in Lua libraries that should never be cleared from package cache
+local builtin_libs = {
+    string = true,
+    table = true,
+    math = true,
+    io = true,
+    os = true,
+    debug = true,
+    coroutine = true,
+    package = true,
+    utf8 = true,
+    bit = true,
+    jit = true,
+    ffi = true,
+    -- LOVE built-in modules
+    love = true
+}
 
 -- Helper to handle error output and update debug_output
 local function handleErrorOutput(err_message)
@@ -53,49 +90,106 @@ local function handle(err)
     return "ERROR: " .. err
 end
 
+-- Helper function for consistent debug printing
+-- Prefix can be set to false to omit the "[LICK]" prefix
+-- Can be overridden for custom log handling outside LICK
+function lick.debugPrint(message, showPrefix)
+    if showPrefix == false then
+        print(tostring(message))
+    else
+        print("[LICK] " .. tostring(message))
+    end
+end
+
+-- Local alias for easier calls
+-- Check for debug or force within local.
+local function debugPrint(message, force, showPrefix)
+    if force or lick.debug then
+        lick.debugPrint(message, showPrefix)
+    end
+end
+
+-- Convert gitignore-style patterns to Lua patterns
+local function convertIgnorePattern(line)
+    -- Trim whitespace
+    line = line:match("^%s*(.-)%s*$")
+
+    -- Skip empty lines and comments
+    if line == "" or line:match("^#") then
+        return nil
+    end
+
+    -- Convert gitignore-style patterns to Lua patterns
+    local pattern = line
+
+    -- Escape special lua pattern characters except '*' and '?'
+    pattern = pattern:gsub("([%^%$%(%)%%%.%[%]%+%-])", "%%%1")
+
+    -- Convert wildcards: '*' to '.*' and '?' to '.'
+    pattern = pattern:gsub("%*%*", "\001")  -- Temporary marker for '**'
+    pattern = pattern:gsub("%*", "[^/]*")   -- '*' matches any sequence except '/'
+    pattern = pattern:gsub("\001", ".*")    -- '**' matches any sequence including '/'
+    pattern = pattern:gsub("%?", ".")       -- '?' matches any single character
+
+    -- Handle directory patterns (ending with '/')
+    if line:sub(-1) == "/" then
+        pattern = "^" .. pattern:sub(1, -2) .. "/?"
+    else
+        -- Match the pattern at any position in the path
+        if not line:match("^/") then
+            pattern = pattern .. "$"
+        else
+            pattern = "^" .. pattern:sub(2) .. "$"
+        end
+    end
+
+    return pattern
+end
+
 
 -- Parse .lickignore file for patterns to ignore
 local function loadIgnorePatterns()
     local patterns = {}
-    local ignoreFileContent = love.filesystem.read(lick.ignoreFile)
+    local ignoreFileContent, err = love.filesystem.read(lick.ignoreFile)
+    local default_patterns = {}
 
-    if not ignoreFileContent then
-        return patterns -- No ignore file found, return empty patterns
-    end
-
-    for line in ignoreFileContent:gmatch("[^\r\n]+") do
-        line = line:match("^%s*(.-)%s*$") -- Trim whitespace
-
-        -- Skip empty lines and comments
-        if line ~= "" and not line:match("^#") then
-            -- Convert gitignore-style patterns to Lua patterns
-            local pattern = line
-
-            -- Escape special lua pattern characters except '*' and '?'
-            pattern = pattern:gsub("([%^%$%(%)%%%.%[%]%+%-])", "%%%1")
-
-            -- Convert wildcards: '*' to '.*' and '?' to '.'
-            pattern = pattern:gsub("%*%*", "\001")  -- Temporary marker for '**'
-            pattern = pattern:gsub("%*", "[^/]*")   -- '*' matches any sequence except '/'
-            pattern = pattern:gsub("\001", ".*")    -- '**' matches any sequence including '/'
-            pattern = pattern:gsub("%?", ".")       -- '?' matches any single character
-
-            -- Handle directory patterns (ending with '/')
-            if line:sub(-1) == "/" then
-                pattern = "^" .. pattern:sub(1, -2) .. "/?"
-            else
-                -- Match the pattern at any position in the path
-                if not line:match("^/") then
-                    pattern = pattern .. "$"
-                else
-                    pattern = "^" .. pattern:sub(2) .. "$"
-                end
-            end
-
-            table.insert(patterns, pattern)
+    -- Parse default patterns first
+    for line in default_ignore_patterns:gmatch("[^\r\n]+") do
+        local pattern = convertIgnorePattern(line)
+        if pattern then
+            table.insert(default_patterns, pattern)
         end
     end
 
+    -- If no .lickignore file found, use default patterns
+    if not ignoreFileContent then
+        debugPrint("No .lickignore file found. Using default ignore patterns.")
+
+        for _, pattern in ipairs(default_patterns) do
+            table.insert(patterns, pattern)
+        end
+    else
+        -- .lickignore file exists, check for merging option
+        if lick.mergePatterns then
+            debugPrint("Merging .lickignore patterns with default ignore patterns.")
+
+            for _, pattern in ipairs(default_patterns) do
+                table.insert(patterns, pattern)
+            end
+        else
+            debugPrint("Using .lickignore patterns only.")
+        end
+
+        -- Parse .lickignore file
+        for line in ignoreFileContent:gmatch("[^\r\n]+") do
+            local pattern = convertIgnorePattern(line)
+            if pattern then
+                table.insert(patterns, pattern)
+            end
+        end
+    end
+
+    debugPrint("Loaded " .. tostring(#patterns) .. " ignore patterns.")
     return patterns
 end
 
@@ -107,6 +201,82 @@ local function shouldIgnore(filePath)
         end
     end
     return false
+end
+
+-- Prints the working_files in a tree structure for debugging
+local function printWorkingFiles(files)
+    -- Build a tree structure from flat file paths
+    local tree = {}
+
+    for _, filepath in ipairs(files) do
+        local parts = {}
+        for part in filepath:gmatch("[^/]+") do
+            table.insert(parts, part)
+        end
+
+        local current = tree
+        for i, part in ipairs(parts) do
+            if i == #parts then
+                -- It's a file
+                table.insert(current, { name = part, is_file = true })
+            else
+                -- It's a directory
+                local found = false
+                for _, node in ipairs(current) do
+                    if node.name == part and not node.is_file then
+                        current = node.children
+                        found = true
+                        break
+                    end
+                end
+
+                if not found then
+                    local new_dir = { name = part, is_file = false, children = {} }
+                    table.insert(current, new_dir)
+                    current = new_dir.children
+                end
+            end
+        end
+    end
+
+    -- Sort function to put directories first, then alphabetically
+    local function sortTree(node)
+        table.sort(node, function(a, b)
+            if a.is_file ~= b.is_file then
+                return not a.is_file -- directories first
+            end
+            return a.name < b.name
+        end)
+
+        for _, child in ipairs(node) do
+            if not child.is_file then
+                sortTree(child.children)
+            end
+        end
+    end
+    sortTree(tree)
+
+    -- Build the tree as a single string
+    local tree_lines = {}
+    local function buildTree(node, prefix)
+        for i, item in ipairs(node) do
+            local is_last_item = (i == #node)
+            local connector = is_last_item and "└── " or "├── "
+            local display_name = item.is_file and item.name or (item.name .. "/")
+
+            table.insert(tree_lines, prefix .. connector .. display_name)
+
+            if not item.is_file then
+                local new_prefix = prefix .. (is_last_item and "    " or "│   ")
+                buildTree(item.children, new_prefix)
+            end
+        end
+    end
+
+    buildTree(tree, "")
+
+    -- Print the entire tree at once
+    debugPrint(table.concat(tree_lines, "\n"), true, false)
 end
 
 -- Function to collect all files in the directory and subdirectories with the given extensions into a set
@@ -123,9 +293,16 @@ local function collectWorkingFiles(file_set, dir)
         end
 
         if info and info.type == "file" then
-            for _, ext in ipairs(lick.fileExtensions) do
-                if file:sub(- #ext) == ext then
-                    file_set[filePath] = true -- Add to set for uniqueness
+            -- If fileExtensions is empty, accept all files
+            if #lick.fileExtensions == 0 then
+                file_set[filePath] = true
+            else
+                -- Otherwise, check if file matches any of the specified extensions
+                for _, ext in ipairs(lick.fileExtensions) do
+                    if file:sub(- #ext) == ext then
+                        file_set[filePath] = true
+                        break -- No need to check other extensions once matched
+                    end
                 end
             end
         elseif info and info.type == "directory" then
@@ -138,6 +315,7 @@ end
 
 -- Initialization
 local function load()
+    debugPrint("Initializing LICK...")
     -- Load ignore patterns from .lickignore file
     ignore_patterns = loadIgnorePatterns()
 
@@ -146,20 +324,13 @@ local function load()
 
     if not lick.updateAllFiles then
         table.insert(working_files, lick.defaultFile)
+        debugPrint("Watching default file only: " .. lick.defaultFile)
     else
         local file_set = {}
         collectWorkingFiles(file_set, "") -- Start collection from root directory
         -- Convert set to ordered list
         for file_path, _ in pairs(file_set) do
             table.insert(working_files, file_path)
-        end
-
-        -- Debug Output
-        if lick.debug then
-            print("[LICK] Watching " .. tostring(#working_files) .. " files:")
-            for _, file in ipairs(working_files) do
-              print("  - " .. file)
-            end
         end
     end
 
@@ -175,9 +346,17 @@ local function load()
             last_modified[file] = 0
         end
     end
+
+    debugPrint("LICK initialized.")
+    -- Debug Output
+    if lick.debug then
+        debugPrint("Watching " .. tostring(#working_files) .. " files:")
+        printWorkingFiles(working_files)
+    end
 end
 
 local function reloadFile(file)
+    debugPrint("Reloading file: " .. file)
     local success, chunk = pcall(love.filesystem.load, file)
     if not success then
         handleErrorOutput(chunk)
@@ -188,12 +367,15 @@ local function reloadFile(file)
         if not ok then
             handleErrorOutput(err)
         else
-            if lick.showReloadMessage then print(lick.chunkLoadMessage) end
+            if lick.showReloadMessage then
+                debugPrint(lick.chunkLoadMessage .. ": " .. file)
+            end
             debug_output = nil
         end
     end
 
     if lick.reset and love.load then
+        debugPrint("Calling love.load due to reset flag.")
         local loadok, err = xpcall(love.load, handle)
         if not loadok then -- Always report load errors
             handleErrorOutput(err)
@@ -216,6 +398,7 @@ local function checkFileUpdate()
             table.insert(files_actually_modified, file_path)
             last_modified[file_path] = info.modtime -- Update the last modified time
         elseif not info and last_modified[file_path] ~= nil then
+            debugPrint("File deleted: " .. file_path)
             -- Handle case where a previously tracked file no longer exists (it was deleted)
             -- This means its state has changed.
             any_file_modified = true
@@ -230,59 +413,45 @@ local function checkFileUpdate()
         return -- No files changed, nothing to do
     end
 
+    debugPrint("Detected changes in " .. tostring(#files_actually_modified) .. " file(s).")
+
     -- If lick.clearFlag is true, set a flag to clear the screen on the next draw
     if lick.clearFlag then
+        debugPrint("Screen will be cleared on next frame.")
         should_clear_screen_next_frame = true
     end
 
     -- If any file was modified, clear packages from the require cache if configured
     if lick.clearPackages then
-        -- List of built-in Lua libraries that should never be cleared
-        local builtin_libs = {
-            string = true,
-            table = true,
-            math = true,
-            io = true,
-            os = true,
-            debug = true,
-            coroutine = true,
-            package = true,
-            utf8 = true,
-            bit = true,
-            jit = true,
-            ffi = true,
-            -- Socket library (For modules that use LuaSocket)
-            socket = true,
-            ["socket.core"] = true,
-            mime = true,
-            ["mime.core"] = true,
-            ltn12 = true,
-            ["socket.http"] = true,
-            ["socket.url"] = true,
-            ["socket.headers"] = true,
-            ["socket.smtp"] = true,
-            ["socket.tp"] = true,
-            ["socket.ftp"] = true,
-            -- LÖVE built-in modules
-            love = true
-        }
-
+        local cleared_count = 0
         for k, _ in pairs(package.loaded) do
-            -- Only clear non-builtin packages
-            if not builtin_libs[k] then
+            -- Only clear non-builtin packages and those not in the ignorePackages list
+            if not builtin_libs[k] and not lick.ignorePackages[k] then
                 package.loaded[k] = nil
             end
         end
+        debugPrint("Cleared " .. cleared_count .. " packages from require cache.")
     end
 
     if lick.entryPoint ~= "" then
         -- If an entry point is defined, reload it. This ensures the entire game logic
         -- (which might implicitly depend on modified files) is re-executed.
+        debugPrint("Reloading entry point: " .. lick.entryPoint)
         reloadFile(lick.entryPoint)
     else
         -- If no specific entry point, only reload the files that were actually modified.
+        debugPrint("Reloading modified files individually.")
         for _, file_path in ipairs(files_actually_modified) do
             reloadFile(file_path)
+        end
+    end
+
+    -- Call the onReload callback if defined, passing the list of reloaded files
+    if lick.onReload and type(lick.onReload) == "function" then
+        debugPrint("Calling onReload callback.")
+        local status, err = pcall(lick.onReload, files_actually_modified)
+        if not status then
+            handleErrorOutput("Error in onReload callback: " .. tostring(err))
         end
     end
 
