@@ -14,6 +14,15 @@ function ColorRect:init(color, width, height)
   self.transform.height = height or 100
 end
 
+-- --------------------------------- SETTERS -------------------------------- --
+
+--- Changes the color of the ColorRect.
+--- @param new_color Color The new color to set.
+function ColorRect:set_color(new_color)
+  self.color = new_color
+end
+
+-- ------------------------------- LOVE HOOKS ------------------------------- --
 
 function ColorRect:_draw()
   if not self.active then return end
