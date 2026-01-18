@@ -4,6 +4,9 @@ Rect = Class:extend("Rect")
 ---*  A Rect is a simple rectangle shape defined by its position and size.
 ---* When combined with a Transform, it can represent a rectangle in 2D space.
 
+local PropertyMixin = require("engine.mixins.propertymixin")
+Rect:implement(PropertyMixin)
+
 --- Constructor for the Rect class
 --- @param ... any constructor overloads:
 ---   - (Vector2 position, Vector2 size)

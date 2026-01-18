@@ -1,7 +1,7 @@
 ---@class Node : Class
 Node = Class:extend("Node")
 
-local PropertyMixin = require("engine.mixins.property")
+local PropertyMixin = require("engine.mixins.propertymixin")
 Node:implement(PropertyMixin)
 
 --- Constructor for the Node class
@@ -24,6 +24,9 @@ function Node:init()
     function(self, value)
       -- Set position value
       self.transform.position = value
+      if self.rect then
+        self.rect.position = value
+      end
       -- Update global position based on parent's global position
       if self.parent then
         self.global_transform.position = self.parent.global_transform.position + value
@@ -78,8 +81,14 @@ function Node:init()
       -- Update local position based on parent's global position
       if self.parent then
         self.transform.position = value - self.parent.global_transform.position
+        if self.rect then
+          self.rect.position = self.transform.position
+        end
       else
         self.transform.position = value
+        if self.rect then
+          self.rect.position = value
+        end
       end
     end
   )
@@ -158,6 +167,10 @@ function Node:_update(dt)
 end
 
 function Node:_draw()
+  -- Override in subclasses
+end
+
+function Node:_input(event)
   -- Override in subclasses
 end
 
