@@ -1,7 +1,7 @@
 ---@class Scene : Class
 Scene = Class:extend("Scene")
 
-local PropertyMixin = require("engine.mixins.property")
+local PropertyMixin = require("engine.mixins.propertymixin")
 Scene:implement(PropertyMixin)
 
 ---* A Scene is the root node of a scene graph. It contains all nodes that are part
@@ -61,8 +61,13 @@ SceneManager = Class:extend("SceneManager")
 ---* It keeps track of the current scene and allows for loading, updating,
 ---* drawing, and destroying scenes as needed.
 
+local DragTestScene = require("scenes.DragTestScene")
+
 function SceneManager:init()
   SceneManager.super.init(self)
+  self.scenes = {
+    ["DragTestScene"] = DragTestScene,
+  }
   self.current_scene = nil
 end
 
@@ -84,6 +89,12 @@ function SceneManager:draw()
   end
 end
 
+function SceneManager:input(event)
+  if self.current_scene then
+    self.current_scene:input(event)
+  end
+end
+
 function SceneManager:destroy()
   if self.current_scene then
     self.current_scene:destroy()
@@ -91,10 +102,13 @@ function SceneManager:destroy()
   end
 end
 
+--- Changes the current scene to a new scene.
+--- @param new_scene string The key of the new scene to switch to.
 function SceneManager:change_scene(new_scene)
   if self.current_scene then
     self.current_scene:destroy()
   end
-  self.current_scene = new_scene
+  -- Initialize the new scene
+  self.current_scene = self.scenes[new_scene]()
   self.current_scene:load()
 end
