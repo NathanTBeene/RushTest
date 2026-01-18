@@ -10,6 +10,7 @@ require("models.color")
 require("models.rect")
 
 -- Engine Components
+require("engine.input")
 require("engine.node")
 require("engine.control")
 require("engine.colorrect")
@@ -46,6 +47,11 @@ end
 --- @type Game
 G = Game()
 
+--- Global Input Instance
+--- This is where all input events will be created and managed.
+--- @type Input
+I = Input()
+
 -- ------------------------------ LOVE METHODS ------------------------------ --
 
 function love.load()
@@ -54,29 +60,34 @@ end
 
 function love.update(dt)
   Conduit:update()
+  I:update(dt)
   G:update(dt)
-end
-
-function love.quit()
-  Conduit:shutdown()
 end
 
 function love.draw()
   G:draw()
 end
 
+function love.quit()
+  Conduit:shutdown()
+end
+
+
+
+-- ----------------------------- INPUT HANDLERS ----------------------------- --
+
 function love.keypressed(key)
-  G:key_pressed(key)
+  I:_on_key_pressed(key)
 end
 
 function love.keyreleased(key)
-  G:key_released(key)
+  I:_on_key_released(key)
 end
 
 function love.mousepressed(x, y, button)
-  G:mouse_pressed(x, y, button)
+  I:_on_mouse_pressed(x, y, button)
 end
 
 function love.mousereleased(x, y, button)
-  G:mouse_released(x, y, button)
+  I:_on_mouse_released(x, y, button)
 end
