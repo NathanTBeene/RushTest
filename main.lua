@@ -73,7 +73,6 @@ function love.quit()
 end
 
 
-
 -- ----------------------------- INPUT HANDLERS ----------------------------- --
 
 function love.keypressed(key)
@@ -85,9 +84,13 @@ function love.keyreleased(key)
 end
 
 function love.mousepressed(x, y, button)
-  I:_on_mouse_pressed(x, y, button)
+  I:_on_mouse_pressed(button)
 end
 
 function love.mousereleased(x, y, button)
-  I:_on_mouse_released(x, y, button)
+  I:_on_mouse_released(button)
+end
+
+function love.wheelmoved(x, y)
+  I:_on_mouse_wheel_moved(x, y)
 end

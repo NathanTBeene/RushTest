@@ -2,6 +2,9 @@
 Input = Class:extend("Input")
 
 function Input:init()
+  self.debug = G.debug or false
+  self.log_keys = false -- Set to true to log all key events
+
   -- Current frame key states
   self.keys_down = {}
   self.keys_pressed = {}
@@ -26,6 +29,58 @@ function Input:init()
   -- Input buffer for frame-perfect input (in seconds)
   self.buffer_time = 0.1
   self.buffered_actions = {}
+
+  -- Conduit logging
+  if Conduit then
+    Conduit:console("input")
+    Conduit.input:success("Input system initialized.")
+
+    -- Mouse Watchables
+    Conduit.input:group("Mouse", 1)
+    Conduit.input:watch("Position", function() return tostring(self.mouse_pos) end, "Mouse", 1)
+    Conduit.input:watch("Delta", function() return tostring(self.mouse_delta) end, "Mouse", 2)
+
+    -- Action Map Watchables
+    Conduit.input:group("Actions", 2)
+    Conduit.input:watch("Defined Actions", function()
+      local count = 0
+      for _ in pairs(self.action_map) do
+        count = count + 1
+      end
+      return tostring(count)
+    end, "Actions", 1)
+    Conduit.input:watch("Actions", function()
+      local actions = {}
+      for action_name, bindings in pairs(self.action_map) do
+        local string = ""
+        local state = ""
+        if self:is_action_pressed(action_name) then
+          state = "[PRESSED]"
+        elseif self:is_action_just_released(action_name) then
+          state = "[ RELEASED]"
+        else
+          state = "[       ]"
+        end
+        string = string .. action_name .. " => " .. state
+
+        table.insert(actions, string)
+      end
+
+      return table.concat(actions, "\n")
+    end, "Actions", 2)
+
+    -- Buffered Actions Watchables
+    Conduit.input:group("Buffers", 3)
+    Conduit.input:watch("Buffered Actions", function()
+      local keys = {}
+      for k, _ in pairs(self.buffered_actions) do
+        table.insert(keys, k)
+      end
+      return table.concat(keys, ", ")
+    end, "Buffers", 1)
+
+  end
+
 end
 
 -- ----------------------------- ACTION MAPPING ----------------------------- --
@@ -39,19 +94,39 @@ function Input:add_action(action_name, bindings)
     mouse = bindings.mouse or {},
     gamepad = bindings.gamepad or {}
   }
+
+  if Conduit and self.debug then
+    Conduit.input:log("Added action '" .. action_name .. "' with bindings.")
+  end
 end
 
 --- Remove an action from the action map
 --- @param action_name string The name of the action to remove
 function Input:remove_action(action_name)
   self.action_map[action_name] = nil
+
+  if Conduit and self.debug then
+    Conduit.input:log("Removed action '" .. action_name .. "'.")
+  end
 end
 
 --- Load multiple actions from a table
 --- @param actions table A table of action_name -> bindings
 function Input:load_actions(actions)
   for name, bindings in pairs(actions) do
+    -- Don't overwrite existing actions
+    if self.action_map[name] then
+      if Conduit and self.debug then
+        Conduit.input:warn("Action '" .. name .. "' already exists. Skipping load.")
+      end
+      goto continue
+    end
     self:add_action(name, bindings)
+    ::continue::
+  end
+
+  if Conduit and self.debug then
+    Conduit.input:log("Loaded multiple actions into action map.")
   end
 end
 
@@ -226,6 +301,10 @@ end
 --- @param action_name string The name of the action to buffer
 function Input:buffer_action(action_name)
   self.buffered_actions[action_name] = self.buffer_time
+
+  if Conduit and self.debug then
+    Conduit.input:log("Buffered action '" .. action_name .. "' for " .. tostring(self.buffer_time) .. " seconds.")
+  end
 end
 
 --- Check if an action is currently buffered_action
@@ -239,6 +318,10 @@ end
 --- @param action_name string The name of the action to consume
 function Input:consume_buffered_action(action_name)
   self.buffered_actions[action_name] = nil
+
+  if Conduit and self.debug then
+    Conduit.input:log("Consumed buffered action '" .. action_name .. "'.")
+  end
 end
 
 -- ------------------------------ UPDATE CYCLE ------------------------------ --
@@ -273,6 +356,8 @@ end
 function Input:_on_key_pressed(key)
   self.keys_down[key] = true
   self.keys_pressed[key] = true
+
+  self:_log_key("Key pressed: '" .. key .. "'.")
 end
 
 --- A key is released
@@ -280,6 +365,8 @@ end
 function Input:_on_key_released(key)
   self.keys_down[key] = false
   self.keys_released[key] = true
+
+  self:_log_key("Key released: '" .. key .. "'.")
 end
 
 --- A mouse button is pressed
@@ -287,6 +374,16 @@ end
 function Input:_on_mouse_pressed(button)
   self.mouse_buttons_down[button] = true
   self.mouse_buttons_pressed[button] = true
+
+  local button_name = ({
+    [1] = "Left",
+    [2] = "Right",
+    [3] = "Middle",
+    [4] = "4",
+    [5] = "5"
+  })[button] or tostring(button)
+
+  self:_log_key("Mouse button pressed: '" .. button_name .. "'.")
 end
 
 --- A mouse button is released
@@ -294,4 +391,46 @@ end
 function Input:_on_mouse_released(button)
   self.mouse_buttons_down[button] = false
   self.mouse_buttons_released[button] = true
+
+  local button_name = ({
+    [1] = "Left",
+    [2] = "Right",
+    [3] = "Middle",
+    [4] = "4",
+    [5] = "5"
+  })[button] or tostring(button)
+
+  self:_log_key("Mouse button released: '" .. button_name .. "'.")
+end
+
+--- The mouse wheel is moved
+--- @param x number The horizontal scroll amount
+--- @param y number The vertical scroll amount
+function Input:_on_mouse_wheel_moved(x, y)
+  -- Future implementation for mouse wheel events
+
+  self:_log_key("Mouse wheel moved: " .. (y > 0 and "Up" or (y < 0 and "Down" or "None")) .. ".")
+end
+
+-- ----------------------------- SPECIAL METHODS ---------------------------- --
+
+--- Helper to get the action name for a given key
+--- Returns nil if the key is not mapped to any action
+--- @param key string The key to check
+--- @return string|nil The action name or nil
+function Input:_get_key_action(key)
+  for action_name, bindings in pairs(self.action_map) do
+    for _, bound_key in ipairs(bindings.keyboard) do
+      if bound_key == key then
+        return action_name
+      end
+    end
+  end
+  return nil
+end
+
+function Input:_log_key(message)
+  if Conduit and self.debug and self.log_keys then
+    Conduit.input:log(message)
+  end
 end
