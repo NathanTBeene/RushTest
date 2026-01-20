@@ -1,150 +1,113 @@
 ---@class Transform : Class
-Transform = Class:extend()
+Transform = Class:extend("Transform")
+
+local ConstructorMixin = require("engine.mixins.constructor")
+Transform:implement(ConstructorMixin)
 
 ---* A Transform represents the position, rotation, scale, and skew of an object in 2D space.
 ---* It is used to define how an object is placed and oriented within a scene.
 ---* When combined with a Rect, it can represent a rectangle in 2D space with specific transformations applied.
 
---- Constructor for the Transform class
---- @param ... any constructor overloads:
----   - (Transform other)
----   - (Vector2 position, number rotation)
----   - (Vector2 position, number rotation, Vector2 scale)
----   - (Vector2 position, number rotation, Vector2 scale, Vector2 skew)
----   - (Vector2 position, number rotation, Vector2 scale, Vector2 skew, Vector2 pivot)
-function Transform:init(...)
-  local args = {...}
-  local data
+Transform:_constructors({
+  -- Default Constructor
+  {
+    matcher = function(args)
+      return #args == 0
+    end,
+    builder = function(self, args)
+      self.position = Vector2(0, 0)
+      self.rotation = 0
+      self.scale = Vector2(1, 1)
+      self.skew = Vector2(0, 0)
+      self.pivot = Vector2(0, 0)
+    end
+  },
 
-  -- Constructor from another Transform
-  if #args == 1 and args[1]:is(Transform) then
-    data = self:from_transform(args[1])
+  -- Copy Constructor : Transform(other_transform)
+  {
+    matcher = function(args)
+      return #args == 1 and args[1]:is(Transform)
+    end,
+    builder = function(self, args)
+      local other = args[1]
+      self.position = other.position:clone()
+      self.rotation = other.rotation
+      self.scale = other.scale:clone()
+      self.skew = other.skew:clone()
+      self.pivot = other.pivot:clone()
+    end
+  },
 
-  -- Constructor from position and rotation
-  elseif #args == 2 and
-          args[1]:is(Vector2) and
-          type(args[2]) == "number" then
-    data = self:from_pos_rot(args[1], args[2])
+  -- Transform(position, rotation)
+  {
+    matcher = function(args)
+      return #args == 2 and
+             args[1]:is(Vector2) and
+             type(args[2]) == "number"
+    end,
+    builder = function(self, args)
+      self.position = args[1]:clone()
+      self.rotation = args[2]
+      self.scale = Vector2(1, 1)
+      self.skew = Vector2(0, 0)
+      self.pivot = Vector2(0, 0)
+    end
+  },
 
-  -- Constructor from position, rotation, and scale
-  elseif #args == 3 and
-          args[1]:is(Vector2) and
-          type(args[2]) == "number" and
-          args[3]:is(Vector2) then
-    data = self:from_pos_rot_scale(args[1], args[2], args[3])
+  -- Transform(position, rotation, scale)
+  {
+    matcher = function(args)
+      return #args == 3 and
+             args[1]:is(Vector2) and
+             type(args[2]) == "number" and
+             args[3]:is(Vector2)
+    end,
+    builder = function(self, args)
+      self.position = args[1]:clone()
+      self.rotation = args[2]
+      self.scale = args[3]:clone()
+      self.skew = Vector2(0, 0)
+      self.pivot = Vector2(0, 0)
+    end
+  },
 
-  -- Constructor from position, rotation, scale, and skew
-  elseif #args == 4 and
-          args[1]:is(Vector2) and
-          type(args[2]) == "number" and
-          args[3]:is(Vector2) and
-          args[4]:is(Vector2) then
-    data = self:from_pos_rot_scale_skew(args[1], args[2], args[3], args[4])
+  -- Transform(position, rotation, scale, skew)
+  {
+    matcher = function(args)
+      return #args == 4 and
+             args[1]:is(Vector2) and
+             type(args[2]) == "number" and
+             args[3]:is(Vector2) and
+             args[4]:is(Vector2)
+    end,
+    builder = function(self, args)
+      self.position = args[1]:clone()
+      self.rotation = args[2]
+      self.scale = args[3]:clone()
+      self.skew = args[4]:clone()
+      self.pivot = Vector2(0, 0)
+    end
+  },
 
-  -- Constructor from position, rotation, scale, skew, and pivot
-  elseif #args == 5 and
-          args[1]:is(Vector2) and
-          type(args[2]) == "number" and
-          args[3]:is(Vector2) and
-          args[4]:is(Vector2) and
-          args[5]:is(Vector2) then
-    data = self:from_pos_rot_scale_skew_pivot(args[1], args[2], args[3], args[4], args[5])
-  elseif #args == 0 then
-    -- Default constructor (position (0,0), rotation 0, scale (1,1), skew (0,0), pivot (0,0))
-    data = self:from_pos_rot_scale_skew_pivot(Vector2(0, 0), 0, Vector2(1, 1), Vector2(0, 0), Vector2(0, 0))
-  else
-    error("Invalid arguments to Transform constructor: " .. table.concat(
-      vim.tbl_map(function(v) return type(v) end, args), ", "))
-  end
-
-
-  -- Apply data
-  self.position = data.position
-  self.rotation = data.rotation
-  self.scale = data.scale
-  self.skew = data.skew
-
-  -- Pivot is an offset Vector2 which acts as the origin for rotation, scaling, and skewing
-  self.pivot = data.pivot
-end
-
-
--- ------------------------------ CONSTRUCTORS ------------------------------ --
-
---- Creates a Transform as a copy of another Transform.
---- @param other Transform The Transform to copy.
---- @return table
-function Transform:from_transform(other)
-  return {
-    position = other.position:clone(),
-    rotation = other.rotation,
-    scale = other.scale:clone(),
-    skew = other.skew:clone(),
-    pivot = other.pivot:clone()
+  -- Transform(position, rotation, scale, skew, pivot)
+  {
+    matcher = function(args)
+      return #args == 5 and
+             args[1]:is(Vector2) and
+             type(args[2]) == "number" and
+             args[3]:is(Vector2) and
+             args[4]:is(Vector2) and
+             args[5]:is(Vector2)
+    end,
+    builder = function(self, args)
+      self.position = args[1]:clone()
+      self.rotation = args[2]
+      self.scale = args[3]:clone()
+      self.skew = args[4]:clone()
+      self.pivot = args[5]:clone()
+    end
   }
-end
-
---- Creates a Transform from position and rotation.
---- @param position Vector2 The position of the Transform.
---- @param rotation number The rotation of the Transform in radians.
---- @return table
-function Transform:from_pos_rot(position, rotation)
-  return {
-    position = position:clone(),
-    rotation = rotation,
-    scale = Vector2(1, 1),
-    skew = Vector2(0, 0),
-    pivot = Vector2(0, 0)
-  }
-end
-
---- Creates a Transform from position, rotation, and scale.
---- @param position Vector2 The position of the Transform.
---- @param rotation number The rotation of the Transform in radians.
---- @param scale Vector2 The scale of the Transform.
---- @return table
-function Transform:from_pos_rot_scale(position, rotation, scale)
-  return {
-    position = position:clone(),
-    rotation = rotation,
-    scale = scale:clone(),
-    skew = Vector2(0, 0),
-    pivot = Vector2(0, 0)
-  }
-end
-
---- Creates a Transform from position, rotation, scale, and skew.
---- @param position Vector2 The position of the Transform.
---- @param rotation number The rotation of the Transform in radians.
---- @param scale Vector2 The scale of the Transform.
---- @param skew Vector2 The skew of the Transform.
---- @return table
-function Transform:from_pos_rot_scale_skew(position, rotation, scale, skew)
-  return {
-    position = position:clone(),
-    rotation = rotation,
-    scale = scale:clone(),
-    skew = skew:clone(),
-    pivot = Vector2(0, 0)
-  }
-end
-
---- Creates a Transform from position, rotation, scale, skew, and pivot.
---- @param position Vector2 The position of the Transform.
---- @param rotation number The rotation of the Transform in radians.
---- @param scale Vector2 The scale of the Transform.
---- @param skew Vector2 The skew of the Transform.
---- @param pivot Vector2 The pivot of the Transform.
---- @return table
-function Transform:from_pos_rot_scale_skew_pivot(position, rotation, scale, skew, pivot)
-  return {
-    position = position:clone(),
-    rotation = rotation,
-    scale = scale:clone(),
-    skew = skew:clone(),
-    pivot = pivot:clone()
-  }
-end
+})
 
 -- ----------------------------- SPECIAL METHODS ---------------------------- --
 

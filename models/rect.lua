@@ -1,71 +1,64 @@
 ---@class Rect : Class
 Rect = Class:extend("Rect")
 
+local ConstructorMixin = require("engine.mixins.constructor")
+Rect:implement(ConstructorMixin)
+
 ---*  A Rect is a simple rectangle shape defined by its position and size.
 ---* When combined with a Transform, it can represent a rectangle in 2D space.
 
-local PropertyMixin = require("engine.mixins.propertymixin")
-Rect:implement(PropertyMixin)
+Rect:_constructors({
+  -- Default Constructor
+  {
+    matcher = function(args)
+      return #args == 0
+    end,
+    builder = function(self, args)
+      self.position = Vector2(0, 0)
+      self.size = Vector2(0, 0)
+    end
+  },
 
---- Constructor for the Rect class
---- @param ... any constructor overloads:
----   - (Vector2 position, Vector2 size)
----   - (number x, number y, number width, number height)
----   - (Rect rect)
-function Rect:init(...)
-  local args = {...}
-  local data
+  -- Copy Constructor : Rect(other_rect)
+  {
+    matcher = function(args)
+      return #args == 1 and args[1]:is(Rect)
+    end,
+    builder = function(self, args)
+      local other = args[1]
+      self.position = Vector2(other.position.x, other.position.y)
+      self.size = Vector2(other.size.x, other.size.y)
+    end
+  },
 
-  -- Constructor from two Vector2s
-  if #args == 2 and args[1]:is(Vector2) and args[2]:is(Vector2) then
-    data = self:_from_vectors(args[1], args[2])
-  end
-  -- Constructor from individual dimensions
-  if #args == 4 and
-     type(args[1]) == "number" and
-     type(args[2]) == "number" and
-     type(args[3]) == "number" and
-     type(args[4]) == "number" then
-    data = self:_from_dimensions(args[1], args[2], args[3], args[4])
-  end
-  -- Constructor from another Rect
-  if #args == 1 and args[1]:is(Rect) then
-    data = self:_from_rect(args[1])
-  end
-  -- Default constructor (0,0) position and (0,0) size
-  if not data then
-    data = self:_from_dimensions(0, 0, 0, 0)
-  end
+  -- Rect(x, y, width, height)
+  {
+    matcher = function(args)
+      return #args == 4 and
+             type(args[1]) == "number" and
+             type(args[2]) == "number" and
+             type(args[3]) == "number" and
+             type(args[4]) == "number"
+    end,
+    builder = function(self, args)
+      self.position = Vector2(args[1], args[2])
+      self.size = Vector2(args[3], args[4])
+    end
+  },
 
-  -- Apply data
-  self.position = data.position
-  self.size = data.size
-end
-
--- ------------------------------ CONSTRUCTORS ------------------------------ --
-
---- Creates a Rect from individual dimensions.
---- @param x number The x-coordinate of the rectangle's top-left corner.
---- @param y number The y-coordinate of the rectangle's top-left corner.
---- @param width number The width of the rectangle.
---- @param height number The height of the rectangle.
-function Rect:_from_dimensions(x, y, width, height)
-  return {position = Vector2(x, y), size = Vector2(width, height)}
-end
-
---- Creates a Rect from two Vector2s.
---- @param position Vector2 The position of the rectangle's top-left corner.
---- @param size Vector2 The size of the rectangle.
-function Rect:_from_vectors(position, size)
-  return {position = position, size = size}
-end
-
---- Creates a Rect as a copy of another Rect.
---- @param rect Rect The Rect to copy.
-function Rect:_from_rect(rect)
-  return {position = rect.position:clone(), size = rect.size:clone()}
-end
-
+  -- Rect(position, size)
+  {
+    matcher = function(args)
+      return #args == 2 and
+             args[1]:is(Vector2) and
+             args[2]:is(Vector2)
+    end,
+    builder = function(self, args)
+      self.position = args[1]
+      self.size = args[2]
+    end
+  },
+})
 
 -- --------------------------------- GETTERS -------------------------------- --
 
@@ -108,14 +101,14 @@ function Rect:grow_individual(left, top, right, bottom)
 end
 
 --- Returns the four corners of the rectangle as a table of Vector2 points.
---- @return table A table containing the four corners of the rectangle.
+--- @return Rect A copy Rect representing the four corners of the rectangle.
 function Rect:get_bounds()
-  return {
-    Vector2(self.position.x, self.position.y), -- Top-left
-    Vector2(self.position.x + self.size.x, self.position.y), -- Top-right
-    Vector2(self.position.x + self.size.x, self.position.y + self.size.y), -- Bottom-right
-    Vector2(self.position.x, self.position.y + self.size.y) -- Bottom-left
-  }
+  return Rect(
+    self.position.x,
+    self.position.y,
+    self.size.x,
+    self.size.y
+  )
 end
 
 --- Calculates the intersection of this rectangle with another rectangle.
