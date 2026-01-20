@@ -107,13 +107,6 @@ end
 function Class:__call(...)
   local args = {...}
   local obj = setmetatable({}, self)
-
-  -- If first arg is a string, treat as name
-  if #args > 0 and type(args[1]) == "string" then
-    obj.__name = args[1]
-    table.remove(args, 1)
-  end
-
   obj:init(unpack(args))
   return obj
 end
