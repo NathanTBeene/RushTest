@@ -1,6 +1,6 @@
 ---@class PropertyMixin
 
-PropertyMixin = {}
+local PropertyMixin = {}
 
 function PropertyMixin:init_properties()
   self.__properties = self.__properties or {}
