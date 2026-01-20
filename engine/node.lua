@@ -1,19 +1,31 @@
 ---@class Node : Class
 Node = Class:extend("Node")
 
-local PropertyMixin = require("engine.mixins.propertymixin")
+local PropertyMixin = require("engine.mixins.property")
 Node:implement(PropertyMixin)
+
+--* Nodes represent any object that needs to have a transform.
+--* Everything on screen is a Node.
+--* Nodes have a Transform and Rect to represent their position and size in 2D space.
+--* Nodes can have child Nodes, forming a scene graph hierarchy.
 
 --- Constructor for the Node class
 function Node:init()
   self.parent = nil
   self.children = {}
   self.active = true
-  self.debug = false
+  self.debug = G.debug or false
+  self.input_behavior = "pass" -- Options: "consume", "pass", "ignore"
+
+  -- Config table for metadata
+  self.config = self.config or {}
 
   -- Transforms
   self.transform = Transform()
   self.global_transform = Transform()
+
+  -- Rect
+  self.rect = Rect()
 
   -- Init property system
   self:init_properties()
@@ -24,9 +36,7 @@ function Node:init()
     function(self, value)
       -- Set position value
       self.transform.position = value
-      if self.rect then
-        self.rect.position = value
-      end
+      self.rect.position = value
       -- Update global position based on parent's global position
       if self.parent then
         self.global_transform.position = self.parent.global_transform.position + value
@@ -81,14 +91,10 @@ function Node:init()
       -- Update local position based on parent's global position
       if self.parent then
         self.transform.position = value - self.parent.global_transform.position
-        if self.rect then
-          self.rect.position = self.transform.position
-        end
+        self.rect.position = self.transform.position
       else
         self.transform.position = value
-        if self.rect then
-          self.rect.position = value
-        end
+        self.rect.position = value
       end
     end
   )
@@ -123,6 +129,24 @@ function Node:init()
   )
 
   -- Global pivot should not be used.
+
+  -- Define rect property aliases
+  self:define_property("size",
+    function(self) return Vector2(self.rect.size.x, self.rect.size.y) end,
+    function(self, value)
+      self.rect.size.x = value.x
+      self.rect.size.y = value.y
+    end
+  )
+  self:define_property("width",
+    function(self) return self.rect.size.x end,
+    function(self, value) self.rect.size.x = value end
+  )
+  self:define_property("height",
+    function(self) return self.rect.size.y end,
+    function(self, value) self.rect.size.y = value end
+  )
+
 end
 
 -- ------------------------- LOVE LIFECYCLE METHODS ------------------------- --
@@ -139,7 +163,6 @@ end
 function Node:update(dt)
   if not self.active then return end
   self:_update(dt)
-  self:update_transforms(dt)
   for i = #self.children, 1, -1 do
     self.children[i]:update(dt)
   end
@@ -148,10 +171,35 @@ end
 --- Called every frame to draw the node as well as its children
 function Node:draw()
   if not self.active then return end
+  self:draw_bounding_rect(Color.red)
   self:_draw()
   for _, child in ipairs(self.children) do
     child:draw()
   end
+end
+
+function Node:input(event)
+  if not self.active or event:is_consumed() then return end
+  -- Children first for reverse propagation
+  for i = #self.children, 1, -1 do
+    self.children[i]:input(event)
+    if event:is_consumed() then return end
+  end
+
+  -- Handle based on own input_behavior
+  if self.input_behavior == "ignore" then
+    return -- Skips _input since already propogated
+  end
+
+  -- Call Hook
+  self:_input(event)
+
+  -- Consume
+  if self.input_behavior == "consume" then
+    event:consume()
+  end
+
+  -- Pass does nothing and event continues propagating
 end
 
 -- ---------------------------------- HOOKS --------------------------------- --
@@ -220,10 +268,19 @@ function Node:destroy()
   self:remove_from_parent()
 end
 
---- Updates the transforms of children to reflect any changes in this node's transform
---- @param dt number Delta time since last update
-function Node:update_transforms(dt)
+-- --------------------------- BOUNDARY CHECKERS ---------------------------- --
 
+--- Creates a rectangle representing the bounds of the control in global space
+--- @return Rect The bounding rectangle of the control
+function Node:get_bounds()
+  return self.rect:get_bounds()
+end
+
+--- Checks if a given point is within the bounds of the control
+--- @param point Vector2 The point to check
+--- @return boolean True if the point is within bounds, false otherwise
+function Node:is_in_bounds(point)
+  return self.rect:has_point(point)
 end
 
 -- -------------------------------- DEBUGGING ------------------------------- --
@@ -237,15 +294,22 @@ function Node:print_tree(depth)
   end
 end
 
+--- Draws the bounding rectangle of the node for debugging purposes
+--- @param color table The color to use for drawing the bounding rectangle
+function Node:draw_bounding_rect(color)
+  if not self.debug then return end
+
+  local choice = color or Color.red
+  love.graphics.setColor(choice.r, choice.g, choice.b, choice.a)
+  love.graphics.setLineWidth(2)
+  local bounds = self:get_bounds()
+  love.graphics.rectangle("line", bounds.position.x, bounds.position.y, bounds.size.x * self.global_transform.scale.x, bounds.size.y * self.global_transform.scale.y)
+  love.graphics.setColor(1, 1, 1, 1)
+end
+
 -- ----------------------------- SPECIAL METHODS ---------------------------- --
 
 function Node:__tostring()
   local name = self.__name or "Node"
   return string.format("<%s: %s>", name, tostring(self.transform.position))
-end
-
---- Internal method for calculating global position
---- from screen space
-function Node:_get_global_position()
-
 end

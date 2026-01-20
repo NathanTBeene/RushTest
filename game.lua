@@ -1,9 +1,20 @@
 ---@class Game : Class
-Game = Class:extend()
+Game = Class:extend("Game")
 
 function Game:init()
   G = self
   self:set_globals()
+  self.nodes = {}
+
+  local testNode = ColorRect(Color.white, 200, 150)
+  testNode.position = Vector2(100, 100)
+  testNode.size = Vector2(200, 150)
+
+  testNode:connect("clicked", function(self, position)
+    print("ColorRect clicked at position: " .. tostring(position))
+  end)
+
+  self.nodes["testNode"] = testNode
 end
 
 function Game:start_up()
@@ -20,7 +31,22 @@ function Game:start_up()
 end
 
 function Game:update(dt)
+  for _, node in pairs(self.nodes) do
+    node:update(dt)
+  end
 end
 
 function Game:draw()
+  for _, node in pairs(self.nodes) do
+    node:draw()
+  end
+end
+
+function Game:input(event)
+  for _, node in pairs(self.nodes) do
+    node:input(event)
+    if event:is_consumed() then
+      break
+    end
+  end
 end

@@ -49,17 +49,18 @@ function Input:init()
       end
       return tostring(count)
     end, "Actions", 1)
+
     Conduit.input:watch("Actions", function()
       local actions = {}
       for action_name, bindings in pairs(self.action_map) do
         local string = ""
         local state = ""
         if self:is_action_pressed(action_name) then
-          state = "[PRESSED]"
+          state = "[ PRESSED  ]"
         elseif self:is_action_just_released(action_name) then
-          state = "[ RELEASED]"
+          state = "[ RELEASED ]"
         else
-          state = "[       ]"
+          state = "[          ]"
         end
         string = string .. action_name .. " => " .. state
 
@@ -78,9 +79,7 @@ function Input:init()
       end
       return table.concat(keys, ", ")
     end, "Buffers", 1)
-
   end
-
 end
 
 -- ----------------------------- ACTION MAPPING ----------------------------- --
@@ -163,11 +162,15 @@ end
 --- @return boolean
 function Input:is_action_just_pressed(action_name)
   local bindings = self.action_map[action_name]
-  if not bindings then return false end
+  if not bindings then
+    Conduit.input:warn("Action '" .. action_name .. "' not found in action map.")
+    return false
+  end
 
   -- Check keyboard bindings
   for _, key in ipairs(bindings.keyboard) do
     if self.keys_pressed[key] then
+      Conduit.input:log("Action '" .. action_name .. "' triggered by key '" .. key .. "'.")
       return true
     end
   end
@@ -175,6 +178,7 @@ function Input:is_action_just_pressed(action_name)
   -- Check mouse bindings
   for _, button in ipairs(bindings.mouse) do
     if self.mouse_buttons_pressed[button] then
+      Conduit.input:log("Action '" .. action_name .. "' triggered by mouse button '" .. tostring(button) .. "'.")
       return true
     end
   end
@@ -329,7 +333,8 @@ end
 --- Update the input states; to be called once per frame
 --- @param dt number Delta time since last frame
 function Input:update(dt)
-  -- Clear per-frame states
+
+-- Clear per-frame states
   self.keys_pressed = {}
   self.keys_released = {}
   self.mouse_buttons_pressed = {}
@@ -349,29 +354,52 @@ function Input:update(dt)
   end
 end
 
+--- Dispatch an input event to the global Game
+--- @param event InputEvent The input event to dispatch
+function Input:_dispatch_event(event)
+  if not event then
+    Conduit.input:error("Tried to dispatch a nil input event!")
+    return
+  end
+  G:input(event)
+end
+
 -- --------------------------- INTERNAL CALLBACKS --------------------------- --
 
 --- A key is pressed
 --- @param key string The key that was pressed
-function Input:_on_key_pressed(key)
+--- @param scancode string The scancode of the key
+--- @param isrepeat boolean Whether the key press is a repeat
+function Input:_on_key_pressed(key, scancode, isrepeat)
   self.keys_down[key] = true
   self.keys_pressed[key] = true
+
+  -- Create and dispatch event
+  local event = self:_create_key_pressed_event(key, scancode, isrepeat)
+  self:_dispatch_event(event)
 
   self:_log_key("Key pressed: '" .. key .. "'.")
 end
 
 --- A key is released
 --- @param key string The key that was released
-function Input:_on_key_released(key)
+--- @param scancode string The scancode of the key
+function Input:_on_key_released(key, scancode)
   self.keys_down[key] = false
   self.keys_released[key] = true
+
+  -- Create and dispatch event
+  local event = self:_create_key_released_event(key, scancode)
+  self:_dispatch_event(event)
 
   self:_log_key("Key released: '" .. key .. "'.")
 end
 
 --- A mouse button is pressed
 --- @param button number The mouse button that was pressed
-function Input:_on_mouse_pressed(button)
+--- @param x number The x position of the mouse when pressed
+--- @param y number The y position of the mouse when pressed
+function Input:_on_mouse_pressed(button, x, y)
   self.mouse_buttons_down[button] = true
   self.mouse_buttons_pressed[button] = true
 
@@ -383,12 +411,19 @@ function Input:_on_mouse_pressed(button)
     [5] = "5"
   })[button] or tostring(button)
 
+  -- Create and dispatch event
+  local event = self:_create_mouse_pressed_event(button, x, y)
+  self:_dispatch_event(event)
+
+
   self:_log_key("Mouse button pressed: '" .. button_name .. "'.")
 end
 
 --- A mouse button is released
 --- @param button number The mouse button that was released
-function Input:_on_mouse_released(button)
+--- @param x number The x position of the mouse when released
+--- @param y number The y position of the mouse when released
+function Input:_on_mouse_released(button, x, y)
   self.mouse_buttons_down[button] = false
   self.mouse_buttons_released[button] = true
 
@@ -400,17 +435,99 @@ function Input:_on_mouse_released(button)
     [5] = "5"
   })[button] or tostring(button)
 
+  -- Create and dispatch event
+  local event = self:_create_mouse_released_event(button, x, y)
+  self:_dispatch_event(event)
+
   self:_log_key("Mouse button released: '" .. button_name .. "'.")
 end
 
 --- The mouse wheel is moved
 --- @param x number The horizontal scroll amount
 --- @param y number The vertical scroll amount
-function Input:_on_mouse_wheel_moved(x, y)
-  -- Future implementation for mouse wheel events
+function Input:_on_mouse_wheel(x, y)
+  local event = self:_create_mouse_wheel_event(x, y)
+  self:_dispatch_event(event)
 
   self:_log_key("Mouse wheel moved: " .. (y > 0 and "Up" or (y < 0 and "Down" or "None")) .. ".")
 end
+
+--- The mouse is moved
+--- @param x number The new x position of the mouse
+--- @param y number The new y position of the mouse
+--- @param dx number The change in x position since last frame
+--- @param dy number The change in y position since last frame
+--- @param istouch boolean Whether the movement is from a touch input
+function Input:_on_mouse_moved(x, y, dx, dy, istouch)
+  local event = self:_create_mouse_motion_event(x, y, dx, dy)
+  self:_dispatch_event(event)
+end
+
+-- -------------------------- FACTORY EVENT METHODS ------------------------- --
+
+local function _populate_mods()
+  return {
+    shift = love.keyboard.isDown("lshift") or love.keyboard.isDown("rshift"),
+    ctrl = love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl"),
+    alt = love.keyboard.isDown("lalt") or love.keyboard.isDown("ralt"),
+    system = love.keyboard.isDown("lgui") or love.keyboard.isDown("rgui")
+  }
+end
+
+function Input:_create_key_pressed_event(key, scancode, is_repeat)
+  local event_data = {
+    key = key,
+    scancode = scancode,
+    is_repeat = is_repeat
+  }
+  local mods = _populate_mods()
+  return InputEvent(InputEvent.KEY_PRESSED, event_data, mods)
+end
+
+function Input:_create_key_released_event(key, scancode)
+  local event_data = {
+    key = key,
+    scancode = scancode
+  }
+  local mods = _populate_mods()
+  return InputEvent(InputEvent.KEY_RELEASED, event_data, mods)
+end
+
+function Input:_create_mouse_pressed_event(button, x, y)
+  local event_data = {
+    button = button,
+    position = Vector2(x, y)
+  }
+  local mods = _populate_mods()
+  return InputEvent(InputEvent.MOUSE_PRESSED, event_data, mods)
+end
+
+function Input:_create_mouse_released_event(button, x, y)
+  local event_data = {
+    button = button,
+    position = Vector2(x, y)
+  }
+  local mods = _populate_mods()
+  return InputEvent(InputEvent.MOUSE_RELEASED, event_data, mods)
+end
+
+function Input:_create_mouse_wheel_event(x, y)
+  local event_data = {
+    wheel = Vector2(x, y)
+  }
+  local mods = _populate_mods()
+  return InputEvent(InputEvent.MOUSE_WHEEL, event_data, mods)
+end
+
+function Input:_create_mouse_motion_event(x, y, dx, dy)
+  local event_data = {
+    position = Vector2(x, y),
+    delta = Vector2(dx, dy)
+  }
+  local mods = _populate_mods()
+  return InputEvent(InputEvent.MOUSE_MOVED, event_data, mods)
+end
+
 
 -- ----------------------------- SPECIAL METHODS ---------------------------- --
 
@@ -434,3 +551,11 @@ function Input:_log_key(message)
     Conduit.input:log(message)
   end
 end
+
+-- --------------------------- GLOBAL KEY HELPERS --------------------------- --
+
+Input.MOUSELEFT = 1
+Input.MOUSERIGHT = 2
+Input.MOUSEMIDDLE = 3
+Input.MOUSE4 = 4
+Input.MOUSE5 = 5
