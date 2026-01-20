@@ -3,6 +3,12 @@ ColorRect = Control:extend("ColorRect")
 
 ---* The ColorRect uses the transform and rect properties of Control to draw a colored rectangle.
 
+local DraggableMixin = require("engine.mixins.draggable")
+ColorRect:implement(DraggableMixin)
+
+local SignalMixin = require("engine.mixins.signal")
+ColorRect:implement(SignalMixin)
+
 --- Constructor for the ColorRect class
 ---@param color? Color The color of the rectangle (optional, default to Color())
 ---@param width? number The width of the rectangle (optional, default to 100)
@@ -10,8 +16,15 @@ ColorRect = Control:extend("ColorRect")
 function ColorRect:init(color, width, height)
   ColorRect.super.init(self)
   self.color = color or Color()
-  self.transform.width = width or 100
-  self.transform.height = height or 100
+  self.width = width or 100
+  self.height = height or 100
+
+  -- Initialize draggable functionality
+  self:init_draggable()
+
+  -- Initialize signals
+  self:init_signals()
+  self:define_signal("clicked")
 end
 
 -- --------------------------------- SETTERS -------------------------------- --
@@ -23,6 +36,31 @@ function ColorRect:set_color(new_color)
 end
 
 -- ------------------------------- LOVE HOOKS ------------------------------- --
+
+function ColorRect:_input(event)
+  -- Handle clicking
+  if event.event_type == InputEvent.MOUSE_PRESSED and event:is_button(Input.MOUSELEFT) and self:is_mouse_over() then
+    self.clicked = true
+    self:emit("clicked", self, event.position)
+  elseif event.event_type == InputEvent.MOUSE_RELEASED and event:is_button(Input.MOUSELEFT) then
+    if self.is_dragging then
+      self:drag_end()
+    end
+    self.clicked = false
+  end
+
+  if event.event_type == InputEvent.MOUSE_MOVED  and self.clicked then
+    -- Check delta of movement.
+    if event.delta:length() >= self.drag_threshold then
+      self:drag_start()
+      self.clicked = false
+    end
+  end
+end
+
+function ColorRect:_update(dt)
+  self:drag_update(dt)
+end
 
 function ColorRect:_draw()
   if not self.active then return end
