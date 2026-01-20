@@ -1,5 +1,5 @@
 ---@class Color : Class
-Color = Class:extend()
+Color = Class:extend("Color")
 
 ---* Note:
 ---* I don't prefer using the Love2D color format of 0-1 for each channel,

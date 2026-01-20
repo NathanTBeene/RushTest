@@ -1,5 +1,5 @@
 ---@class Vector2 : Class
-Vector2 = Class:extend()
+Vector2 = Class:extend("Vector2")
 
 --- Constructor
 --- @param x number
@@ -7,6 +7,10 @@ Vector2 = Class:extend()
 function Vector2:init(x, y)
     self.x = x or 0
     self.y = y or 0
+end
+
+function Vector2:length()
+    return math.sqrt(self.x * self.x + self.y * self.y)
 end
 
 -- ----------------------------- SPECIAL METHODS ---------------------------- --
