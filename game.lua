@@ -7,14 +7,16 @@ function Game:init()
   self.nodes = {}
 
   local testNode = ColorRect(Color.white, 200, 150)
+  testNode.name = "TestNode"
   testNode.position = Vector2(100, 100)
   testNode.size = Vector2(200, 150)
 
-  testNode:connect("clicked", function(self, position)
-    print("ColorRect clicked at position: " .. tostring(position))
-  end)
+  local testButton = Button()
+  testButton.name = "TestButton"
+  testButton.position = Vector2(500, 200)
 
   self.nodes["testNode"] = testNode
+  self.nodes["testButton"] = testButton
 end
 
 function Game:start_up()
