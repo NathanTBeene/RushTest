@@ -1,6 +1,6 @@
 package.preload['server']=(function(...)local o=require("socket")local t={}t.__index=t
-function t:new(o,n)local e=setmetatable({},t)e.config=o
-e.consoles=n
+function t:new(n,o)local e=setmetatable({},t)e.config=n
+e.consoles=o
 e.tcp=nil
 e.clients={}return e
 end
@@ -28,26 +28,26 @@ local e=e
 if e then
 e:settimeout(0)table.insert(self.clients,{socket=e,buffer="",start_time=o.gettime(),headers_complete=false,content_length=0,body_start=nil})end
 end
-function t:_process_connections()for l=#self.clients,1,-1 do
-local e=self.clients[l]local t=false
+function t:_process_connections()for s=#self.clients,1,-1 do
+local e=self.clients[s]local t=false
 local n=true
 local a=0
 while n and a<10 do
 a=a+1
-local l,s,o,a=pcall(function()return e.socket:receive(1024)end)if not l then
+local l,s,a,o=pcall(function()return e.socket:receive(1024)end)if not l then
 t=true
 n=false
 elseif s then
 e.buffer=e.buffer..s
-elseif a and#a>0 then
-e.buffer=e.buffer..a
+elseif o and#o>0 then
+e.buffer=e.buffer..o
 end
-if o=="timeout"then
+if a=="timeout"then
 n=false
-elseif o=="closed"then
+elseif a=="closed"then
 t=true
 n=false
-elseif o then
+elseif a then
 t=true
 n=false
 end
@@ -72,7 +72,7 @@ if o.gettime()-e.start_time>5 then
 t=true
 end
 if t then
-e.socket:close()table.remove(self.clients,l)end
+e.socket:close()table.remove(self.clients,s)end
 end
 end
 function t:_handle_request(t,o)local e,n,a=string.match(o,"^(%w+) (%S+) (%S+)")if not e or not n then
@@ -92,20 +92,20 @@ self:_api_consoles_list(t)elseif e=="/api/stats"then
 self:_api_stats(t)else
 self:_send_response(t,404,"text/plain","Not Found:  "..e)end
 end
-function t:_send_response(o,t,n,e)local a={[200]="OK",[400]="Bad Request",[404]="Not Found",[500]="Internal Server Error"}local e=string.format("HTTP/1.1 %d %s\r\n".."Content-Type: %s\r\n".."Content-Length: %d\r\n".."Connection: close\r\n".."\r\n".."%s",t,a[t]or"Unknown",n,#e,e)o:send(e)end
+function t:_send_response(o,t,a,e)local n={[200]="OK",[400]="Bad Request",[404]="Not Found",[500]="Internal Server Error"}local e=string.format("HTTP/1.1 %d %s\r\n".."Content-Type: %s\r\n".."Content-Length: %d\r\n".."Connection: close\r\n".."\r\n".."%s",t,n[t]or"Unknown",a,#e,e)o:send(e)end
 function t:_serve_index(t)local e=require("templates")local e=e.render_index(self.consoles,self.config)self:_send_response(t,200,"text/html",e)end
-function t:_serve_console(e,n)local t=self.consoles[n]if not t then
-self:_send_response(e,404,"text/plain","Console not found:  "..n)return
+function t:_serve_console(t,e)local n=self.consoles[e]if not n then
+self:_send_response(t,404,"text/plain","Console not found:  "..e)return
 end
-local n=require("templates")local t=n.render_console(t,self.config)self:_send_response(e,200,"text/html",t)end
+local e=require("templates")local e=e.render_console(n,self.config)self:_send_response(t,200,"text/html",e)end
 function t:_api_console_buffer(e,t)local t=self.consoles[t]if not t then
 self:_send_response(e,404,"text/plain","Console not found")return
 end
 local n=require("templates")local t=n.render_logs_buffer(t)self:_send_response(e,200,"text/html",t)end
-function t:_api_console_logs(t,e)local e=self.consoles[e]if not e then
-self:_send_response(t,404,"application/json",'{"error":"Console not found"}')return
+function t:_api_console_logs(n,e)local e=self.consoles[e]if not e then
+self:_send_response(n,404,"application/json",'{"error":"Console not found"}')return
 end
-local n=e:get_logs()local e=self:_encode_json({success=true,total=e.total_logs,count=#n,logs=n})self:_send_response(t,200,"application/json",e)end
+local t=e:get_logs()local e=self:_encode_json({success=true,total=e.total_logs,count=#t,logs=t})self:_send_response(n,200,"application/json",e)end
 function t:_api_console_command(e,n,t)local n=self.consoles[n]if not n then
 self:_send_response(e,404,"application/json",'{"error":"Console not found"}')return
 end
@@ -122,22 +122,22 @@ local t=n:execute_command(t.command,t.args or{})local t=self:_encode_json(t)self
 function t:_api_consoles_list(t)local e={}for n,t in pairs(self.consoles)do
 table.insert(e,t:get_stats())end
 local e=self:_encode_json({success=true,consoles=e})self:_send_response(t,200,"application/json",e)end
-function t:_api_stats(s)local n=0
+function t:_api_stats(s)local o=0
+local n=0
 local t=0
-local o=0
 local e=0
 for s,a in pairs(self.consoles)do
 e=e+1
-n=n+a.total_logs
-for n,e in ipairs(a:get_logs())do
+o=o+a.total_logs
+for o,e in ipairs(a:get_logs())do
 if e.level=="error"then
-t=t+1
+n=n+1
 elseif e.level=="warning"then
-o=o+1
+t=t+1
 end
 end
 end
-local e=self:_encode_json({success=true,stats={console_count=e,total_logs=n,total_errors=t,total_warnings=o}})self:_send_response(s,200,"application/json",e)end
+local e=self:_encode_json({success=true,stats={console_count=e,total_logs=o,total_errors=n,total_warnings=t}})self:_send_response(s,200,"application/json",e)end
 function t:_encode_json(a)local function n(e)local t=type(e)if t=="string"then
 e=string.gsub(e,'\\','\\\\')e=string.gsub(e,'"','\\"')e=string.gsub(e,'\n','\\n')e=string.gsub(e,'\r','\\r')e=string.gsub(e,'\t','\\t')return'"'..e..'"'elseif t=="number"then
 return tostring(e)elseif t=="boolean"then
@@ -246,11 +246,11 @@ function e:debug(e)self:_add_log(t.DEBUG,e)end
 function e:clear()self.logs={}end
 function e:get_logs()return self.logs
 end
-function e:register_command(t,e,n)if not t or type(t)~="string"then
+function e:register_command(e,t,n)if not e or type(e)~="string"then
 error("[Conduit] Command name must be a string")end
-if not e or type(e)~="function"then
+if not t or type(t)~="function"then
 error("[Conduit] Command callback must be a function")end
-self.commands[t]={callback=e,description=n or"No description"}end
+self.commands[e]={callback=t,description=n or"No description"}end
 function e:execute_command(e,t)if not self.commands[e]then
 local e=string.format("Command '%s' not found. Type 'help' for a list of commands.",e)self:error(e)return{success=false,message=e}end
 local n,t=pcall(self.commands[e].callback,self,t or{})if not n then
@@ -262,14 +262,14 @@ e=e+1
 end
 return e
 end
-function e:watch(e,t,o,n)if not e or type(e)~="string"then
+function e:watch(e,t,n,o)if not e or type(e)~="string"then
 error("[Conduit] Watchable name must be a string")self:warn("Invalid name for watchable. Must be a string.")end
 if not t or type(t)~="function"then
 error("[Conduit] Watchable getter must be a function")self:warn("Invalid getter for watchable '"..e.."'. Must be a function.")end
 if#self.watchables>=self.max_watchables then
 error("[Conduit] Maximum number of watchables reached")self:warn("Maximum number of watchables reached. Cannot add '"..e.."'.")end
-o=o or"Other"n=n or 999
-self.watchables[e]={getter=t,group=o,order=n}end
+n=n or"Other"o=o or 999
+self.watchables[e]={getter=t,group=n,order=o}end
 function e:group(e,t)if not e or type(e)~="string"then
 error("[Conduit] Watchable group name must be a string")end
 t=t or 999
@@ -277,19 +277,19 @@ self.watchable_groups[e]=t
 end
 function e:unwatch(e)self.watchables[e]=nil
 self._recalculate_group_orders()end
-function e:unwatch_group(e)for n,t in pairs(self.watchables)do
-if t.group==e then
+function e:unwatch_group(t)for n,e in pairs(self.watchables)do
+if e.group==t then
 self.watchables[n]=nil
 end
 end
 end
-function e:get_watchables()local t={}local o={}for s,n in pairs(self.watchables)do
+function e:get_watchables()local t={}local o={}for a,n in pairs(self.watchables)do
 local e=n.group
 if not o[e]then
 local n={name=e,order=self.watchable_groups[e]or 999,items={}}table.insert(t,n)o[e]=n
 end
-local a,t=pcall(n.getter)local t=a and tostring(t)or("Error: "..tostring(t))table.insert(o[e].items,{name=s,value=t,order=n.order})end
-table.sort(t,function(t,e)return t.order<e.order
+local s,t=pcall(n.getter)local t=s and tostring(t)or("Error: "..tostring(t))table.insert(o[e].items,{name=a,value=t,order=n.order})end
+table.sort(t,function(e,t)return e.order<t.order
 end)for t,e in ipairs(t)do
 table.sort(e.items,function(e,t)return e.order<t.order
 end)end
@@ -894,27 +894,27 @@ end)package.preload['templates']=(function(...)local t={}local s=[[
     // Update every REFRESH_INTERVAL ms
     setInterval(updateIndex, {{REFRESH_INTERVAL}});
 </script>
-]]function t.render_index(l,i)local e={}for t,n in pairs(l)do
-local n=n:get_stats()table.insert(e,string.format([[
+]]function t.render_index(l,i)local t={}for e,n in pairs(l)do
+local n=n:get_stats()table.insert(t,string.format([[
       <a href="/console/%s" class="console-card">
         <div class="console-card-title">%s</div>
         <div class="console-card-info">%d logs</div>
       </a>
-    ]],t,t,n.log_count))end
-local t=table.concat(e,"\n")if t==""then
-t='<p style="color: #8b949e; padding: 40px; text-align: center;">No consoles created yet.</p>'end
-local e=0
-local n=0
-local a=0
+    ]],e,e,n.log_count))end
+local a=table.concat(t,"\n")if a==""then
+a='<p style="color: #8b949e; padding: 40px; text-align: center;">No consoles created yet.</p>'end
 local o=0
-for s,t in pairs(l)do
-o=o+1
-e=e+t.total_logs
-for t,e in ipairs(t:get_logs())do
-if e.level=="error"then
+local n=0
+local e=0
+local t=0
+for s,a in pairs(l)do
+t=t+1
+o=o+a.total_logs
+for o,t in ipairs(a:get_logs())do
+if t.level=="error"then
 n=n+1
-elseif e.level=="warning"then
-a=a+1
+elseif t.level=="warning"then
+e=e+1
 end
 end
 end
@@ -964,8 +964,8 @@ local l=r:gsub("{{REFRESH_INTERVAL}}",tostring(i.refresh_interval or 500))return
         %s
     </body>
     </html>
-    ]],s,t,o,e,n,a,l)end
-function t.render_console(e,n)local t=t.render_logs_buffer(e)local n=i:gsub("{{CONSOLE_NAME}}",e.name):gsub("{{REFRESH_INTERVAL}}",tostring(n.refresh_interval or 200))return string.format([[
+    ]],s,a,t,o,n,e,l)end
+function t.render_console(e,n)local o=t.render_logs_buffer(e)local t=i:gsub("{{CONSOLE_NAME}}",e.name):gsub("{{REFRESH_INTERVAL}}",tostring(n.refresh_interval or 200))return string.format([[
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -1033,7 +1033,8 @@ function t.render_console(e,n)local t=t.render_logs_buffer(e)local n=i:gsub("{{C
         %s
     </body>
     </html>
-  ]],e.name,s,e.name,t,e.total_logs,n)end
+  ]],e.name,s,e.name,o,e.total_logs,t)end
+local function o(e)return e:gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;"):gsub('"',"&quot;"):gsub("'","&#39;")end
 function t.render_logs_buffer(e)local e=e:get_logs()if#e==0 then
 return[[
       <div style="text-align: center; padding: 40px; color: #8b949e;">
@@ -1043,10 +1044,10 @@ return[[
       </p>
       </div>
     ]]end
-local t={}for n,e in ipairs(e)do
-local n=""if e.timestamp then
-n=string.format('<span class="log-timestamp">[%s]</span> ',e.timestamp)end
-local o=e.message:gsub("\n","<br>")local e=string.format([[
+local n={}for t,e in ipairs(e)do
+local t=""if e.timestamp then
+t=string.format('<span class="log-timestamp">[%s]</span> ',e.timestamp)end
+local o=o(e.message):gsub("\n","<br>")local e=string.format([[
       <div class="log-entry" style="color: %s;" data-type="%s">
         <span class="log-icon">%s</span>
         <span class="log-message">
@@ -1056,8 +1057,8 @@ local o=e.message:gsub("\n","<br>")local e=string.format([[
           </span>
         </span>
       </div>
-    ]],e.color,e.level or"custom",e.icon,n,o)table.insert(t,e)end
-return table.concat(t,"\n")end
+    ]],e.color,e.level or"custom",e.icon,t,o)table.insert(n,e)end
+return table.concat(n,"\n")end
 return t
 end)local t={}local n={}local s={port=8080,timestamps=true,max_logs=1e3,max_watchables=100,refresh_interval=200}local e=nil
 local a=false
@@ -1093,14 +1094,14 @@ end
 function t:clear_consoles()for t,e in pairs(n)do
 e:clear()end
 print("[Conduit] All consoles cleared")end
-function t:_define_global_commands()o["help"]={callback=function(n,e)local t={"=== Available Commands ===\n"}local e={}for t,n in pairs(n.commands)do
-table.insert(e,{name=t,desc=n.description})end
-table.sort(e,function(t,e)return t.name<e.name end)for o,e in ipairs(e)do
-table.insert(t,string.format("  %s - %s",e.name,e.desc))end
-n:log(table.concat(t,"\n"))end,description="Show all available commands"}o["clear"]={callback=function(e,t)e:clear()e:log("Console cleared")end,description="Clear all logs from this console"}o["stats"]={callback=function(t,e)local e=t:get_stats()local e={"=== Console Statistics ===\n",string.format("Name: %s",e.name),string.format("Current logs: %d",e.log_count),string.format("Total logs written: %d",e.total_logs),string.format("Max logs: %d",e.max_logs),string.format("Commands available: %d",e.command_count)}t:log(table.concat(e,"\n"))end,description="Show statistics for this console"}end
-function t:register_global_command(e,t,s)if not a then
+function t:_define_global_commands()o["help"]={callback=function(t,e)local n={"=== Available Commands ===\n"}local e={}for n,t in pairs(t.commands)do
+table.insert(e,{name=n,desc=t.description})end
+table.sort(e,function(e,t)return e.name<t.name end)for o,e in ipairs(e)do
+table.insert(n,string.format("  %s - %s",e.name,e.desc))end
+t:log(table.concat(n,"\n"))end,description="Show all available commands"}o["clear"]={callback=function(e,t)e:clear()e:log("Console cleared")end,description="Clear all logs from this console"}o["stats"]={callback=function(t,e)local e=t:get_stats()local e={"=== Console Statistics ===\n",string.format("Name: %s",e.name),string.format("Current logs: %d",e.log_count),string.format("Total logs written: %d",e.total_logs),string.format("Max logs: %d",e.max_logs),string.format("Commands available: %d",e.command_count)}t:log(table.concat(e,"\n"))end,description="Show statistics for this console"}end
+function t:register_global_command(e,s,t)if not a then
 self:init({})end
-o[e]={callback=t,description=s or"No description"}for o,n in pairs(n)do
-n:register_command(e,t,s)end
+o[e]={callback=s,description=t or"No description"}for o,n in pairs(n)do
+n:register_command(e,s,t)end
 print(string.format("[Conduit] Registered global command '%s'",e))end
 return t
