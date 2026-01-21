@@ -23,6 +23,16 @@ function Color:init(r, g, b, a)
   self[4] = self.a
 end
 
+-- --------------------------------- GETTERS -------------------------------- --
+
+function Color:as_table()
+  return {self.r, self.g, self.b, self.a}
+end
+
+function Color:as_named_table()
+  return {r = self.r, g = self.g, b = self.b, a = self.a}
+end
+
 -- ----------------------------- FACTORY METHODS ---------------------------- --
 
 --- Creates a Color instance from a hex string
@@ -56,6 +66,7 @@ function Color:__tostring()
   return string.format("Color(r: %.2f, g: %.2f, b: %.2f, a: %.2f)",
   self.r * 255, self.g * 255, self.b * 255, self.a * 255)
 end
+
 
 -- ---------------------------- PREDEFINED COLORS --------------------------- --
 
