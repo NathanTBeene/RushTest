@@ -306,10 +306,3 @@ function Node:draw_bounding_rect(color)
   love.graphics.rectangle("line", bounds.position.x, bounds.position.y, bounds.size.x * self.global_transform.scale.x, bounds.size.y * self.global_transform.scale.y)
   love.graphics.setColor(1, 1, 1, 1)
 end
-
--- ----------------------------- SPECIAL METHODS ---------------------------- --
-
-function Node:__tostring()
-  local name = self.__name or "Node"
-  return string.format("<%s: %s>", name, tostring(self.transform.position))
-end

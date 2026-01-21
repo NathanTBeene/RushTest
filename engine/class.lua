@@ -19,7 +19,8 @@ function Class:extend(name)
     end
   end
   cls.__index = cls
-  cls.__name = name or cls.__name
+  cls.__name = name or self.__name or "UnnamedClass"
+  cls.name = cls.__name
   cls.super = self
   setmetatable(cls, self)
   return cls
@@ -107,6 +108,9 @@ end
 function Class:__call(...)
   local args = {...}
   local obj = setmetatable({}, self)
+  -- Pass down name and __name from class to instance
+  obj.name = self.name
+  obj.__name = self.__name
   obj:init(unpack(args))
   return obj
 end
@@ -114,7 +118,13 @@ end
 --- Returns a string representation of the class
 --- @return string
 function Class:__tostring()
-  return self.__name or "Class"
+  local str
+  if self.name ~= self.__name then
+    str = string.format("<%s:%s>", self.__name, tostring(self.name))
+  else
+    str = string.format("<%s>", self.__name)
+  end
+  return str
 end
 
 --- Concatenates the string representation of the class with another string

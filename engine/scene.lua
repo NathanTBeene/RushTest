@@ -4,8 +4,8 @@ Scene = Node:extend("Scene")
 ---* Scenes are just base Nodes that are intended to be used as the root node of a scene graph.
 ---* Individual scenes are subclasses of Scene.
 
-function Scene:init()
-  self.name = "Scene"
+function Scene:init(name)
+  self.name = name or self.__name
   Scene.super.init(self)
 end
 
