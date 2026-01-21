@@ -6,9 +6,6 @@ ColorRect = Control:extend("ColorRect")
 local DraggableMixin = require("engine.mixins.draggable")
 ColorRect:implement(DraggableMixin)
 
-local SignalMixin = require("engine.mixins.signal")
-ColorRect:implement(SignalMixin)
-
 --- Constructor for the ColorRect class
 ---@param color? Color The color of the rectangle (optional, default to Color())
 ---@param width? number The width of the rectangle (optional, default to 100)
@@ -18,13 +15,6 @@ function ColorRect:init(color, width, height)
   self.color = color or Color()
   self.width = width or 100
   self.height = height or 100
-
-  -- Initialize draggable functionality
-  self:init_draggable()
-
-  -- Initialize signals
-  self:init_signals()
-  self:define_signal("clicked")
 end
 
 -- --------------------------------- SETTERS -------------------------------- --
@@ -38,27 +28,11 @@ end
 -- ------------------------------- LOVE HOOKS ------------------------------- --
 
 function ColorRect:_input(event)
-  -- Handle clicking
-  if event.event_type == InputEvent.MOUSE_PRESSED and event:is_button(Input.MOUSELEFT) and self:is_mouse_over() then
-    self.clicked = true
-    self:emit("clicked", self, event.position)
-  elseif event.event_type == InputEvent.MOUSE_RELEASED and event:is_button(Input.MOUSELEFT) then
-    if self.is_dragging then
-      self:drag_end()
-    end
-    self.clicked = false
-  end
-
-  if event.event_type == InputEvent.MOUSE_MOVED  and self.clicked then
-    -- Check delta of movement.
-    if event.delta:length() >= self.drag_threshold then
-      self:drag_start()
-      self.clicked = false
-    end
-  end
+  ColorRect.super._input(self, event)
 end
 
 function ColorRect:_update(dt)
+  ColorRect.super._update(self, dt)
   self:drag_update(dt)
 end
 
