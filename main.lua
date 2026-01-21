@@ -1,16 +1,18 @@
 require("network")
 require("conf")
 require("engine.class")       -- Base Class implementation needed for everything.
+require("engine.cursor")      -- Cursor definitions
 
 -- --------------------------------- IMPORTS -------------------------------- --
 -- Functions
-require("functions.utility")
+-- require("functions.utility")
 
 -- Models
 require("models.vector2")
 require("models.transform")
 require("models.color")
 require("models.rect")
+require("models.style")
 
 -- Engine Components
 require("engine.events.event")
@@ -19,6 +21,7 @@ require("engine.input")
 require("engine.node")
 require("engine.control")
 require("engine.colorrect")
+require("engine.button")
 
 -- Systems
 require("game")
@@ -49,14 +52,87 @@ I = Input()
 
 -- ------------------------------ LOVE METHODS ------------------------------ --
 
+function love.run()
+  local dt = 0
+  local dt_smooth = 1/60 -- Initialize for delta smoothing
+  local accumulator = 0
+  local run_time = 0
+
+  if love.load then love.load() end
+  if love.timer then love.timer.step() end
+
+  return function()
+    run_time = love.timer.getTime()
+
+    -- Event Handling
+    if love.event then
+      love.event.pump()
+      for name, a,b,c,d,e,f in love.event.poll() do
+        if name == "quit" then
+          if not love.quit or not love.quit() then
+            return a or 0
+          end
+        end
+        love.handlers[name](a,b,c,d,e,f)
+      end
+    end
+
+    -- Get Delta Time
+    if love.timer then dt = love.timer.step() end
+    dt_smooth = math.min(0.8 * dt_smooth + 0.2 * dt, 0.1)
+
+    -- Get fixed timestep
+    local FIXED_DT = G.SETTINGS.FPS_CAP > 0 and 1 / G.SETTINGS.FPS_CAP or 1/60 -- Default to 60 FPS if no cap
+
+    -- Fixed Timestep Physics
+    accumulator = accumulator + dt
+    while accumulator >= FIXED_DT do
+      if love.physics_update then
+        love.physics_update(FIXED_DT)
+      end
+      accumulator = accumulator - FIXED_DT
+    end
+
+    -- Variable Timestep Update
+    if love.update then love.update(dt_smooth) end
+
+    -- Draw
+    if love.graphics and love.graphics.isActive() then
+      love.graphics.clear()
+      if love.draw then love.draw() end
+      love.graphics.present()
+    end
+
+    -- Frame Rate Limiting
+    run_time = math.min(love.timer.getTime() - run_time, 0.1)
+    if G.SETTINGS.FPS_CAP > 0 then
+      local frame_time = 1 / G.SETTINGS.FPS_CAP
+      if run_time < frame_time then
+        love.timer.sleep(frame_time - run_time)
+      end
+    else
+      -- Unlimited FPS, yield to avoid CPU hogging
+      love.timer.sleep(0.001)
+    end
+  end
+end
+
 function love.load()
   G:start_up()
 end
 
+-- Recieves dt_smooth from love.run
+-- Runs as fast as possible but dt is smoothed
+-- to avoid large jumps
 function love.update(dt)
   Conduit:update()
-  G:update(dt)
   I:update(dt)
+end
+
+-- Fixed Timestep Physics Update
+-- Dt is fixed to 1 / FPS_CAP
+function love.physics_update(dt)
+  G:update(dt)
 end
 
 function love.draw()
