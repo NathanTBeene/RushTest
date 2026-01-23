@@ -13,6 +13,7 @@ require("models.transform")
 require("models.color")
 require("models.rect")
 require("models.style")
+require("models.spritesheet")
 
 -- Engine Components
 require("engine.events.event")
@@ -22,6 +23,7 @@ require("engine.node")
 require("engine.control")
 require("engine.colorrect")
 require("engine.button")
+require("engine.sprite")
 
 -- Systems
 require("game")
