@@ -20,15 +20,18 @@ function InputEvent:init(event_type, event_data, mods)
   -- Set up properties
   self:init_properties()
 
-  self:define_property("event_type", function(self) return self.event_type end)
-  self:define_property("key", function(self) return self.data.key end)
-  self:define_property("button", function(self) return self.data.button end)
-  self:define_property("scancode", function(self) return self.data.scancode end)
-  self:define_property("position", function(self) return self.data.position end)
-  self:define_property("is_repeat", function(self) return self.data.is_repeat or false end)
-  self:define_property("wheel", function(self) return self.data.wheel end)
-  self:define_property("delta", function(self) return self.data.delta end)
 end
+
+-- -------------------------- PROPERTY DEFINITIONS -------------------------- --
+
+InputEvent:define_property("event_type", function(self) return self.event_type end)
+InputEvent:define_property("key", function(self) return self.data.key end)
+InputEvent:define_property("button", function(self) return self.data.button end)
+InputEvent:define_property("scancode", function(self) return self.data.scancode end)
+InputEvent:define_property("position", function(self) return self.data.position end)
+InputEvent:define_property("is_repeat", function(self) return self.data.is_repeat or false end)
+InputEvent:define_property("wheel", function(self) return self.data.wheel end)
+InputEvent:define_property("delta", function(self) return self.data.delta end)
 
 -- ------------------------------- EQUIVELENCE ------------------------------ --
 

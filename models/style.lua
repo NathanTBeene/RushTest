@@ -146,23 +146,6 @@ function Style:init(config)
     }
   }
 
-  self:init_properties()
-
-  self:define_property("normal",
-  function(self)
-    return self.states.normal
-  end)
-
-  self:define_property("hovered",
-  function(self)
-    return self.states.hovered
-  end)
-
-  self:define_property("pressed",
-  function(self)
-    return self.states.pressed
-  end)
-
   -- Merge user config if provided
   -- Only use already defined properties
   if config then
