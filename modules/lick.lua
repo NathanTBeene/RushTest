@@ -482,6 +482,17 @@ local function draw()
     end
 end
 
+-- Expose API functions for external use so users can override
+-- their own love.run if desired and call these functions as
+-- according to documentation for 'Custom love.run Implementation'.
+lick.init = load
+lick.check = checkFileUpdate
+lick.drawDebug = function()
+    if lick.debug and debug_output and love.graphics and love.graphics.isActive() then
+        love.graphics.setColor(1, 1, 1, lick.debugTextAlpha)
+        love.graphics.printf(debug_output, (love.graphics.getWidth() / 2) + lick.debugTextXOffset, 0, lick.debugTextWidth, lick.debugTextAlignment)
+    end
+end
 
 function love.run()
     load()
