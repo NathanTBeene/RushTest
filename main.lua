@@ -118,6 +118,7 @@ function love.run()
 end
 
 function love.load()
+  lick.init() -- Initialize Lick's file watching
   G:start_up()
 end
 
@@ -125,6 +126,7 @@ end
 -- Runs as fast as possible but dt is smoothed
 -- to avoid large jumps
 function love.update(dt)
+  lick.check() -- Check for file changes
   Conduit:update()
   I:update(dt)
 end
@@ -137,6 +139,7 @@ end
 
 function love.draw()
   G:draw()
+  lick.drawDebug() -- Draw Lick's debug info
 end
 
 function love.quit()

@@ -43,7 +43,7 @@ function Style:init(config)
         offsetY = 2,
         blur = 4,
         color = Color(0, 0, 0, 5)
-      }
+      },
     },
     hovered = {
       backgroundColor = Color(230, 230, 230),
