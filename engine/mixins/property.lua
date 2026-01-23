@@ -2,6 +2,8 @@
 
 local PropertyMixin = {}
 
+local Proxy = require("engine.mixins.proxy")
+
 function PropertyMixin:init_properties()
   self.__properties = self.__properties or {}
   self.__property_values = self.__property_values or {}
@@ -15,11 +17,37 @@ function PropertyMixin:init_properties()
     __index = function(t, k)
       -- Check if it's a property with a getter
       if rawget(t, "__properties") and rawget(t, "__properties")[k] then
-        local getter = rawget(t, "__properties")[k].get
+        local prop = rawget(t, "__properties")[k]
+        local getter = prop.get
+
         if getter then
-          return getter(t)
+          local value = getter(t)
+          -- Check if we should wrap in proxy
+          -- By default, wrap tables unless explicitly disables with {proxy = false}
+          local should_proxy = prop.proxy
+          if should_proxy == nil then
+            should_proxy = type(value) == "table"
+          end
+
+          if should_proxy then
+            return Proxy.create_proxy(value, t, k)
+          end
+          return value
         end
-        return rawget(t, "__property_values")[k]
+
+        -- No getter, use stored value
+        local value = rawget(t, "__property_values")[k]
+
+        -- Also proxy stored values if they are tables
+        local should_proxy = prop.proxy
+        if should_proxy == nil then
+          should_proxy = type(value) == "table"
+        end
+
+        if should_proxy and type(value) == "table" then
+          return Proxy.create_proxy(value, t, k)
+        end
+        return value
       end
 
       -- Fallback to original __index (call as function if it's a function)
@@ -65,9 +93,15 @@ end
 --- @param name string The property name
 --- @param getter? function Function to get the property value
 --- @param setter? function Function to set the property value
-function PropertyMixin:define_property(name, getter, setter)
+--- @param options? table Additional options (e.g., {proxy = false} to disable proxying)
+function PropertyMixin:define_property(name, getter, setter, options)
   self.__properties = self.__properties or {}
-  self.__properties[name] = { get = getter, set = setter }
+  options = options or {}
+  self.__properties[name] = {
+    get = getter,
+    set = setter,
+    proxy = options.proxy
+  }
 end
 
 
